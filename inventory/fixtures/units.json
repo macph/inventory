@@ -1,0 +1,233 @@
+[
+  {
+    "model": "inventory.unit",
+    "pk": 1,
+    "fields": {
+      "symbol": "none",
+      "plural": null,
+      "code": null,
+      "measure": 0,
+      "convert": "1.000000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 2,
+    "fields": {
+      "symbol": "pack",
+      "plural": null,
+      "code": null,
+      "measure": 0,
+      "convert": "1.000000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 101,
+    "fields": {
+      "symbol": "metre",
+      "plural": null,
+      "code": "m",
+      "measure": 1,
+      "convert": "1.000000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 102,
+    "fields": {
+      "symbol": "centimetre",
+      "plural": null,
+      "code": "cm",
+      "measure": 1,
+      "convert": "0.01"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 103,
+    "fields": {
+      "symbol": "millimetre",
+      "plural": null,
+      "code": "mm",
+      "measure": 1,
+      "convert": "0.001000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 104,
+    "fields": {
+      "symbol": "yard",
+      "plural": null,
+      "code": "yd",
+      "measure": 1,
+      "convert": "0.914400"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 105,
+    "fields": {
+      "symbol": "foot",
+      "plural": "feet",
+      "code": "ft",
+      "measure": 1,
+      "convert": "0.304800"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 106,
+    "fields": {
+      "symbol": "inch",
+      "plural": "inches",
+      "code": "in",
+      "measure": 1,
+      "convert": "0.025400"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 201,
+    "fields": {
+      "symbol": "kilogram",
+      "plural": null,
+      "code": "kg",
+      "measure": 2,
+      "convert": "1"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 202,
+    "fields": {
+      "symbol": "gram",
+      "plural": null,
+      "code": "g",
+      "measure": 2,
+      "convert": "0.001"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 203,
+    "fields": {
+      "symbol": "milligram",
+      "plural": null,
+      "code": "mg",
+      "measure": 2,
+      "convert": "0.000001"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 204,
+    "fields": {
+      "symbol": "stone",
+      "plural": null,
+      "code": "st",
+      "measure": 2,
+      "convert": "6.350293"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 205,
+    "fields": {
+      "symbol": "pound",
+      "plural": null,
+      "code": "lb",
+      "measure": 2,
+      "convert": "0.453592"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 206,
+    "fields": {
+      "symbol": "ounce",
+      "plural": null,
+      "code": "oz",
+      "measure": 2,
+      "convert": "0.028350"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 301,
+    "fields": {
+      "symbol": "litre",
+      "plural": null,
+      "code": "L",
+      "measure": 3,
+      "convert": "1"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 302,
+    "fields": {
+      "symbol": "centilitre",
+      "plural": null,
+      "code": "cl",
+      "measure": 3,
+      "convert": "0.010000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 303,
+    "fields": {
+      "symbol": "millilitre",
+      "plural": null,
+      "code": "ml",
+      "measure": 3,
+      "convert": "0.001000"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 304,
+    "fields": {
+      "symbol": "gallon",
+      "plural": null,
+      "code": "gal",
+      "measure": 3,
+      "convert": "4.54609"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 305,
+    "fields": {
+      "symbol": "pint",
+      "plural": null,
+      "code": "pt",
+      "measure": 3,
+      "convert": "0.568261"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 306,
+    "fields": {
+      "symbol": "quart",
+      "plural": null,
+      "code": "qt",
+      "measure": 3,
+      "convert": "1.136523"
+    }
+  },
+  {
+    "model": "inventory.unit",
+    "pk": 307,
+    "fields": {
+      "symbol": "fluid ounce",
+      "plural": null,
+      "code": "fl oz",
+      "measure": 3,
+      "convert": "0.028413"
+    }
+  }
+]
