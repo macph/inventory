@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light">
+  <meta name="viewport" content="initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'mvp.css' %}">
+  <style>
+    :root {
+      --font: 'Inter', sans-serif;
+    }
+    a em,
+    a i {
+      font-style: normal;
+    }
+    textarea {
+      width: 88%;
+      resize: vertical;
+      min-height: 1.5rem;
+    }
+  </style>
+  <title>inventory</title>
+</head>
+<body>
+  <header>
+    {% block nav %}
+    <nav>
+      <p><a href="{% url 'index' %}">inventory</a></p>
+    </nav>
+    {% endblock %}
+    {% block header %}
+    {% endblock %}
+  </header>
+  <main>
+    {% block main %}
+    {% endblock %}
+  </main>
+  <footer>
+    {% block footer %}
+    {% endblock %}
+  </footer>
+</body>
+</html>

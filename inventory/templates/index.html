@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block nav %}{% endblock %}
+
+{% block header %}
+<h1>inventory</h1>
+<p>manage your food stockpile!</p>
+{% endblock %}
+
+{% block main %}
+<section>
+  {% if list_items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Food item</th>
+        <th>Quantity</th>
+        <th>Last updated</th>
+        <th>How long left?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in list_items %}
+      <tr>
+        <td><a href="{{ i.get_absolute_url }}">{{ i.name }}</a></td>
+        <td><strong>{{ i.latest_record.print_quantity }}</strong></td>
+        <td>{{ i.latest_record.added }}</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Add a food item to start</p>
+  {% endif %}
+</section>
+<section>
+<p>
+  <a href="{% url 'item_add' %}"><em>Add food item</em></a>
+  {% if list_items %}<a><em>Update records</em></a>{% endif %}
+</p>
+</section>
+{% endblock %}

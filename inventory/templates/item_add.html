@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1>Add food item</h1>
+{% endblock %}
+
+{% block main %}
+{% if just_added %}
+<section>
+  <p style="color: green;"><strong>{{ just_added|capfirst }}</strong> added.</p>
+</section>
+{% endif %}
+{% if form.errors and form.non_field_errors %}
+<section>
+  {% for error in form.non_field_errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+</section>
+{% endif %}
+<section>
+  <form action="{% url 'item_add' %}" method="post">
+    {% csrf_token %}
+    {{ form.name.label_tag }}
+    {{ form.name }}
+    {% for error in form.name.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ form.unit.label_tag }}
+    {{ form.unit }}
+    {% for error in form.unit.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ form.minimum.label_tag }}
+    {{ form.minimum }}
+    {% for error in form.minimum.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    <button type="submit">Add</button>
+    <button type="submit" name="another" value="1">Add another</button>
+  </form>
+</section>
+{% endblock %}

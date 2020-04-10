@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1>{{ food.name }}</h1>
+<p>Created: {{ food.added }}</p>
+{% endblock %}
+
+{% block main %}
+<section>
+  {% if food.all_records %}
+  <table>
+    <thead>
+      <tr>
+        <th>Quantity</th>
+        <th>Added</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in food.all_records %}
+      <tr>
+        <td><strong>{{ r.print_quantity }}</strong></td>
+        <td>{{ r.added }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No records found</p>
+  {% endif %}
+</section>
+<hr>
+<section>
+  <header>
+    <h2>Add record</h2>
+  </header>
+  <form>
+    <label>Quantity<input type="text"></label>
+    <label>Unit<select><option>kg</option></select></label>
+    <label>Note<textarea></textarea></label>
+    <button type="submit">Add</button>
+  </form>
+</section>
+<hr>
+<section>
+  <header>
+    <h2>Edit item</h2>
+  </header>
+  <form>
+    <label>Name<input type="text" value="{{ food.name }}"></label>
+    <label>Preferred unit<select><option>kg</option></select></label>
+    <label>Minimum<input type="text" value="{{ food.minimum|stringformat:'.3g' }}">kg</label>
+    <button type="submit">Update</button>
+    <button>Delete</button>
+  </form>
+</section>
+{% endblock %}

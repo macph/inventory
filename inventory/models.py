@@ -16,6 +16,7 @@ from django.db.models import (
     PROTECT,
 )
 from django.contrib.postgres.fields import CITextField
+from django.urls import reverse
 from django.utils.text import slugify
 
 
@@ -81,6 +82,19 @@ class Item(Model):
     def __str__(self):
         return str(self.name)
 
+    def get_absolute_url(self):
+        return reverse("item_get", args=(self.ident,))
+
+    def get_latest_record(self):
+        try:
+            self.latest_record = self.records.latest("added")
+        except Record.DoesNotExist:
+            self.latest_record = None
+
+    def compatible_units(self):
+        base = self.unit.measure
+        return Unit.objects.filter(measure=base).all()
+
 
 class Record(Model):
     """ Quantity of items added or removed at a set point in time. """
@@ -99,3 +113,15 @@ class Record(Model):
 
     def __str__(self):
         return f"Record ({self.item.name}, {self.added})"
+
+    def print_quantity(self):
+        unit = self.item.unit
+        # Convert to base value to current unit
+        in_unit = self.quantity / unit.convert
+
+        quantity = f"{in_unit:.3g}"
+        unit = str(self.item.unit.code)
+        if unit:
+            quantity += " " + unit
+
+        return quantity
