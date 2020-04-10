@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block header %}
+{% endblock %}
+
+{% block main %}
+<section>
+  <form action="{% url 'item_delete' item.ident %}" method="post">
+    {% csrf_token %}
+    <p>Delete <strong>{{ item.name }}</strong>?</p>
+    <button type="submit" name="delete" value="1">Delete</button>
+    <a href="{% url 'item_get' item.ident %}"><em>Cancel</em></a>
+  </form>
+</section>
+{% endblock %}

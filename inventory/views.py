@@ -87,8 +87,22 @@ class GetItem(View):
             )
 
 
-def item_delete(request, ident):
-    pass
+class DeleteItem(View):
+    def get(self, request, ident):
+        item = models.Item.objects.get(ident=ident)
+        if not item:
+            return Http404(f"food item {ident!r} not found")
+
+        return render(request, "item_delete.html", {"item": item})
+
+    def post(self, request, ident):
+        item = models.Item.objects.get(ident=ident)
+        if not item:
+            return Http404(f"food item {ident!r} not found")
+
+        item.delete()
+
+        return redirect("index")
 
 
 class AddRecord(View):
