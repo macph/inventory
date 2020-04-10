@@ -1,25 +1,31 @@
 {% extends 'base.html' %}
 
 {% block header %}
-<h1>{{ food.name }}</h1>
-<p>Created: {{ food.added }}</p>
+<h1>{{ item.name }}</h1>
+<p>Created: {{ item.added }}</p>
 {% endblock %}
 
 {% block main %}
 <section>
-  {% if food.all_records %}
+  {% if item.all_records %}
   <table>
     <thead>
       <tr>
-        <th>Quantity</th>
         <th>Added</th>
+        {% with unit=item.unit.display %}
+        {% if unit %}
+        <th>Quantity ({{ unit }})</th>
+        {% else %}
+        <th>Quantity</th>
+        {% endif %}
+        {% endwith %}
       </tr>
     </thead>
     <tbody>
-      {% for r in food.all_records %}
+      {% for r in item.all_records %}
       <tr>
-        <td><strong>{{ r.print_quantity }}</strong></td>
         <td>{{ r.added }}</td>
+        <td><strong>{{ r.format_quantity }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -29,28 +35,67 @@
   {% endif %}
 </section>
 <hr>
+{% if add_record.errors and add_record.non_field_errors %}
+<section>
+  {% for error in add_record.non_field_errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+</section>
+{% endif %}
 <section>
   <header>
     <h2>Add record</h2>
   </header>
-  <form>
-    <label>Quantity<input type="text"></label>
-    <label>Unit<select><option>kg</option></select></label>
-    <label>Note<textarea></textarea></label>
+  <form action="{% url 'record_add' item.ident %}" method="post">
+    {% csrf_token %}
+    {{ add_record.quantity.label_tag }}
+    {{ add_record.quantity }}
+    {% for error in add_record.quantity.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ add_record.unit.label_tag }}
+    {{ add_record.unit }}
+    {% for error in add_record.unit.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ add_record.note.label_tag }}
+    {{ add_record.note }}
+    {% for error in add_record.note.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
     <button type="submit">Add</button>
   </form>
 </section>
 <hr>
+{% if edit_item.errors and edit_item.non_field_errors %}
+<section>
+  {% for error in edit_item.non_field_errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+</section>
+{% endif %}
 <section>
   <header>
     <h2>Edit item</h2>
   </header>
-  <form>
-    <label>Name<input type="text" value="{{ food.name }}"></label>
-    <label>Preferred unit<select><option>kg</option></select></label>
-    <label>Minimum<input type="text" value="{{ food.minimum|stringformat:'.3g' }}">kg</label>
+  <form action="{% url 'item_get' item.ident %}" method="post">
+    {% csrf_token %}
+    {{ edit_item.name.label_tag }}
+    {{ edit_item.name }}
+    {% for error in edit_item.name.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ edit_item.unit.label_tag }}
+    {{ edit_item.unit }}
+    {% for error in edit_item.unit.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
+    {{ edit_item.minimum.label_tag }}
+    {{ edit_item.minimum }}
+    {% for error in edit_item.minimum.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
     <button type="submit">Update</button>
-    <button>Delete</button>
   </form>
 </section>
 {% endblock %}

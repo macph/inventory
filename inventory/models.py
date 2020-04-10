@@ -56,6 +56,11 @@ class Unit(Model):
     def __str__(self):
         return str(self.symbol)
 
+    def display(self):
+        return (
+            self.code or self.plural or (self.symbol if self.symbol != "none" else "")
+        )
+
 
 class Item(Model):
     """ A food product being tracked. """
@@ -73,8 +78,9 @@ class Item(Model):
     minimum = DecimalField(max_digits=12, decimal_places=3, default=0)
     added = DateTimeField(auto_now=True)
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
         if not self.ident:
             self.ident = slugify(self.name)
         super().save(force_insert, force_update, using, update_fields)
@@ -114,14 +120,24 @@ class Record(Model):
     def __str__(self):
         return f"Record ({self.item.name}, {self.added})"
 
+    def convert_quantity(self):
+        return self.quantity / self.item.unit.convert
+
+    def format_quantity(self):
+        # truncate to 3 digits first
+        # we use % formatting here as %g will truncate trailing zeros - {:g} won't
+        return "%.12g" % round(self.convert_quantity(), 3)
+
     def print_quantity(self):
-        unit = self.item.unit
-        # Convert to base value to current unit
-        in_unit = self.quantity / unit.convert
-
-        quantity = f"{in_unit:.3g}"
-        unit = str(self.item.unit.code)
-        if unit:
-            quantity += " " + unit
-
-        return quantity
+        quantity = self.convert_quantity()
+        rounded = round(quantity, 3)
+        if self.item.unit.code:
+            return "%.12g %s" % (rounded, self.item.unit.code)
+        elif quantity != 1 and self.item.unit.plural:
+            return "%.12g %s" % (rounded, self.item.unit.plural)
+        elif quantity != 1 and self.item.unit.symbol != "none":
+            return "%.12g %ss" % (rounded, self.item.unit.symbol)
+        elif self.item.unit.symbol != "none":
+            return "%.12g %s" % (rounded, self.item.unit.symbol)
+        else:
+            return "%.12g" % rounded

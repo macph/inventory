@@ -10,6 +10,9 @@ from django.views.generic import View
 from . import forms, models
 
 
+# TODO: Add handling for unique item names but not unique slugs (eg double spaces)
+
+
 def index(request):
     items = models.Item.objects.prefetch_related("records").order_by("name")
     for i in items:
@@ -18,48 +21,96 @@ def index(request):
     return render(request, "index.html", {"list_items": items})
 
 
-class AddItemView(View):
+class AddItem(View):
     def get(self, request):
-        form = forms.ItemForm()
+        form = forms.AddItemForm()
         return render(request, "item_add.html", {"form": form})
 
     def post(self, request):
-        new = forms.ItemForm(request.POST)
-        if new.is_valid():
-            new = new.save()
+        new_item = forms.AddItemForm(request.POST)
+        if new_item.is_valid():
+            new_item = new_item.save()
             if request.POST.get("another"):
                 # return blank form for adding new item
-                form = forms.ItemForm()
+                form = forms.AddItemForm()
                 return render(
                     request,
                     "item_add.html",
-                    {"form": form, "just_added": new.name},
+                    {"form": form, "just_added": new_item.name},
                 )
             else:
                 # go to new item page
-                return redirect(new)
+                return redirect(new_item)
         else:
-            return render(request, "item_add.html", {"form": new})
+            return render(request, "item_add.html", {"form": new_item})
 
 
-def item_get(request, ident):
-    food = models.Item.objects.prefetch_related("unit", "records").get(
-        ident__iexact=slugify(ident)
-    )
+class GetItem(View):
+    def get(self, request, ident):
+        # leave flexible to allow for manual URL input
+        item = models.Item.objects.prefetch_related("unit", "records").get(
+            ident__iexact=slugify(ident)
+        )
+        if not item:
+            return Http404(f"food item {ident!r} not found")
+        elif item.ident != ident:
+            # redirect to correct form of name
+            return redirect("item_get", ident=item.ident)
 
-    if not food:
-        return Http404(f"food item {ident!r} not found")
-    elif food.ident != ident:
-        # redirect to correct form of name
-        return redirect("item_get", ident=food.ident)
-    else:
-        food.all_records = food.records.all()
-        return render(request, "item_get.html", {"food": food})
+        edit_item = forms.EditItemForm(original=item)
+        add_record = forms.AddRecordForm(parent_item=item)
+        item.all_records = item.records.all()
+        return render(
+            request,
+            "item_get.html",
+            {"item": item, "edit_item": edit_item, "add_record": add_record},
+        )
 
+    def post(self, request, ident):
+        # submitted via a POST form so we're expecting an exact match
+        item = models.Item.objects.prefetch_related("unit", "records").get(ident=ident)
+        if not item:
+            return Http404(f"food item {ident!r} not found")
 
-def item_update(request):
-    pass
+        updated_item = forms.EditItemForm(request.POST, instance=item)
+        if updated_item.is_valid():
+            updated_item = updated_item.save()
+            # go to new item page
+            return redirect(updated_item)
+        else:
+            add_record = forms.AddRecordForm(parent_item=item)
+            item.all_records = item.records.all()
+            return render(
+                request,
+                "item_get.html",
+                {"item": item, "edit_item": updated_item, "add_record": add_record},
+            )
 
 
 def item_delete(request, ident):
     pass
+
+
+class AddRecord(View):
+    def post(self, request, ident):
+        # submitted via a POST form so we're expecting an exact match
+        item = models.Item.objects.prefetch_related("unit").get(ident=ident)
+        if not item:
+            return Http404(f"food item {ident!r} not found")
+
+        new_record = forms.AddRecordForm(request.POST, parent_item=item)
+        if new_record.is_valid():
+            # assign foreign key manually
+            new_record.save(commit=False)
+            new_record.instance.item = item
+            new_record.save()
+            # go to item page
+            return redirect(item)
+        else:
+            edit_item = forms.EditItemForm()
+            item.all_records = item.records.all()
+            return render(
+                request,
+                "item_get.html",
+                {"item": item, "edit_item": edit_item, "add_record": new_record},
+            )
