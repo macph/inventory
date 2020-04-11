@@ -10,7 +10,16 @@ from django.views.generic import View
 from . import forms, models
 
 
+# TODO: Relative readable dates, eg 'just now', 'a day ago' and 2 months ago'
 # TODO: Add handling for unique item names but not unique slugs (eg double spaces)
+# TODO: Initial quantity on adding item
+# TODO: Update item preferred unit if different unit used in posting record
+# TODO: Group choices by base measurement when posting items
+# TODO: Add fancy graphs
+# TODO: Convert between wider range of units, possibly with some sort of conversion
+# TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
+# TODO: A better date time format, using 24H format: 10 April 2020 13:41
+# TODO: Header with shortcuts to items page, add item and update records
 
 
 def index(request):
