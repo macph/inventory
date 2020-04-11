@@ -14,5 +14,6 @@ urlpatterns = [
     path("item/<str:ident>/", views.GetItem.as_view(), name="item_get"),
     path("item/<str:ident>/delete/", views.DeleteItem.as_view(), name="item_delete"),
     path("item/<str:ident>/record/", views.AddRecord.as_view(), name="record_add"),
+    path("update/", views.Update.as_view(), name="update"),
     *static(settings.STATIC_URL, document_root=settings.STATIC_ROOT),
 ]

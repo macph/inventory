@@ -37,7 +37,7 @@
 <section>
 <p>
   <a href="{% url 'item_add' %}"><em>Add food item</em></a>
-  {% if list_items %}<a><em>Update records</em></a>{% endif %}
+  {% if list_items %}<a href="{% url 'update' %}"><em>Update records</em></a>{% endif %}
 </p>
 </section>
 {% endblock %}

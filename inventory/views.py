@@ -128,3 +128,32 @@ class AddRecord(View):
                 "item_get.html",
                 {"item": item, "edit_item": edit_item, "add_record": new_record},
             )
+
+
+# TODO: Fewer more efficient SQL queries
+# TODO: Autogenerate form?
+
+
+class Update(View):
+    def get(self, request):
+        items = models.Item.objects.prefetch_related("records").order_by("name")
+        for i in items:
+            i.get_latest_record()
+
+        return render(request, "update.html", {"list_items": items})
+
+    def post(self, request):
+        note = request.POST["note"]
+        for name in request.POST:
+            if not name.startswith("item-") or not request.POST[name]:
+                continue
+            value = request.POST[name]
+            ident = name[5:]
+            item = models.Item.objects.get(ident=ident)
+            if not item:
+                raise Http404(f"food item {ident!r} not found")
+
+            new = models.Record(item=item, quantity=value, note=note)
+            new.save()
+
+        return redirect("index")
