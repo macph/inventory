@@ -2,32 +2,45 @@
 Inventory admin configuration
 
 """
-from django.contrib import admin
-from django.db import models
-from django.forms import widgets
+from django.contrib.admin import ModelAdmin, register
+from django.db.models import TextField
+from django.forms import ModelForm, TextInput
 
 from .models import PresetItem, Unit, Item, Record
 
 
-@admin.register(PresetItem)
-class PresetItemAdmin(admin.ModelAdmin):
-    formfield_overrides = {models.TextField: {"widget": widgets.TextInput}}
+@register(PresetItem)
+class PresetItemAdmin(ModelAdmin):
+    formfield_overrides = {TextField: {"widget": TextInput}}
     list_display = ("name", "measure")
 
 
-@admin.register(Unit)
-class UnitAdmin(admin.ModelAdmin):
-    formfield_overrides = {models.TextField: {"widget": widgets.TextInput}}
+class UnitAdminForm(ModelForm):
+    class Meta:
+        model = Unit
+        fields = "__all__"
+
+    def clean(self):
+        # Force 'plural' field to be None if empty
+        if not self.cleaned_data["plural"]:
+            self.cleaned_data["plural"] = None
+        return super().clean()
+
+
+@register(Unit)
+class UnitAdmin(ModelAdmin):
+    form = UnitAdminForm
+    formfield_overrides = {TextField: {"widget": TextInput}}
     list_display = ("symbol", "measure", "convert")
 
 
-@admin.register(Item)
-class ItemAdmin(admin.ModelAdmin):
-    formfield_overrides = {models.TextField: {"widget": widgets.TextInput}}
+@register(Item)
+class ItemAdmin(ModelAdmin):
+    formfield_overrides = {TextField: {"widget": TextInput}}
     list_display = ("name", "unit", "added")
 
 
-@admin.register(Record)
-class RecordAdmin(admin.ModelAdmin):
-    formfield_overrides = {models.TextField: {"widget": widgets.TextInput}}
+@register(Record)
+class RecordAdmin(ModelAdmin):
+    formfield_overrides = {TextField: {"widget": TextInput}}
     list_display = ("item", "quantity", "added")
