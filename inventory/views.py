@@ -19,7 +19,6 @@ from . import forms, models
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
 # TODO: A better date time format, using 24H format: 10 April 2020 13:41
-# TODO: Header with shortcuts to items page, add item and update records
 
 
 def index(request):

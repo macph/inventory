@@ -27,7 +27,11 @@
   <header>
     {% block nav %}
     <nav>
-      <p><a href="{% url 'index' %}">inventory</a></p>
+      <a href="{% url 'index' %}">inventory</a>
+      <ul>
+        <li><a href="{% url 'item_add' %}">add item</a></li>
+        <li><a href="{% url 'update' %}">update items</a></li>
+      </ul>
     </nav>
     {% endblock %}
     {% block header %}
