@@ -2,6 +2,7 @@
 Inventory models
 
 """
+from django.core.validators import MinValueValidator
 from django.db.models import (
     CheckConstraint,
     DateTimeField,
@@ -75,7 +76,9 @@ class Item(Model):
     name = CITextField(max_length=256, unique=True)
     ident = TextField(unique=True)
     unit = ForeignKey("Unit", on_delete=PROTECT, default=1)
-    minimum = DecimalField(max_digits=12, decimal_places=3, default=0)
+    minimum = DecimalField(
+        max_digits=12, decimal_places=3, default=0, validators=(MinValueValidator(0),)
+    )
     added = DateTimeField(auto_now=True)
 
     def save(
@@ -113,7 +116,9 @@ class Record(Model):
         ]
 
     item = ForeignKey("Item", related_name="records", on_delete=CASCADE)
-    quantity = DecimalField(max_digits=12, decimal_places=3)
+    quantity = DecimalField(
+        max_digits=12, decimal_places=3, validators=(MinValueValidator(0),)
+    )
     added = DateTimeField(auto_now=True, db_index=True)
     note = TextField(blank=True)
 

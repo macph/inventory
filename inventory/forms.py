@@ -4,6 +4,7 @@ Forms for inventory models
 """
 from django.core.exceptions import ValidationError
 from django.forms import ModelChoiceField, ModelForm, CharField
+from django.utils.text import slugify
 
 from . import models
 
@@ -16,6 +17,13 @@ class AddItemForm(ModelForm):
 
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
+        # the slug must also be unique, check before saving new model
+        if models.Item.objects.filter(ident=slugify(name)).exists():
+            raise ValidationError(f"Item name already exists.", code="invalid")
+        return name
 
 
 class EditItemForm(ModelForm):

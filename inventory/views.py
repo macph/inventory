@@ -11,7 +11,6 @@ from . import forms, models
 
 
 # TODO: Relative readable dates, eg 'just now', 'a day ago' and 2 months ago'
-# TODO: Add handling for unique item names but not unique slugs (eg double spaces)
 # TODO: Initial quantity on adding item
 # TODO: Update item preferred unit if different unit used in posting record
 # TODO: Group choices by base measurement when posting items
@@ -140,6 +139,7 @@ class AddRecord(View):
 
 # TODO: Fewer more efficient SQL queries
 # TODO: Autogenerate form?
+# TODO: Validate values entered for update table
 
 
 class Update(View):
