@@ -10,7 +10,6 @@ from django.views.generic import View
 from . import forms, models
 
 
-# TODO: Initial quantity on adding item
 # TODO: Functionality to add extra items in an update form
 # TODO: Update item preferred unit if different unit used in posting record
 # TODO: Group choices by base measurement when posting items

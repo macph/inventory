@@ -35,6 +35,11 @@
     {% for error in form.minimum.errors %}
     <p style="color: red"><strong>{{ error|escape }}</strong></p>
     {% endfor %}
+    {{ form.initial.label_tag }}
+    {{ form.initial }}
+    {% for error in form.initial.errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+    {% endfor %}
     <button type="submit">Add</button>
     <button type="submit" name="another" value="1">Add another</button>
   </form>

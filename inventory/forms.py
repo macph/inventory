@@ -31,12 +31,12 @@ def decimal_field(required=True, **kwargs):
 class AddItemForm(ModelForm):
     class Meta:
         model = Item
-        fields = ("name", "unit", "minimum")
-        exclude = ("ident",)
+        fields = ("name", "unit", "minimum", "initial")
 
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
     minimum = decimal_field(False)
+    initial = decimal_field(False)
 
     def clean_name(self):
         name = self.cleaned_data["name"]
@@ -44,6 +44,18 @@ class AddItemForm(ModelForm):
         if Item.objects.filter(ident=slugify(name)).exists():
             raise ValidationError(f"Item name already exists.", code="invalid")
         return name
+
+    def clean_minimum(self):
+        return self.cleaned_data["minimum"] or 0
+
+    def save(self, commit=True):
+        instance = super().save(commit)
+        initial = self.cleaned_data["initial"]
+        if initial and commit:
+            quantity = round(initial * instance.unit.convert, DP_QUANTITY)
+            new_record = Record(item=instance, quantity=quantity, note="initial")
+            new_record.save()
+        return instance
 
 
 class EditItemForm(ModelForm):
