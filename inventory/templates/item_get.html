@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
+{% load common %}
 
 {% block header %}
 <h1>{{ item.name }}</h1>
-<p>Created: {{ item.added }}</p>
+<p>Created {% format_time item.added %}</p>
 {% endblock %}
 
 {% block main %}
@@ -24,7 +25,7 @@
     <tbody>
       {% for r in item.all_records %}
       <tr>
-        <td>{{ r.added }}</td>
+        <td>{% time_since r.added %}</td>
         <td><strong>{{ r.format_quantity }}</strong></td>
       </tr>
       {% endfor %}

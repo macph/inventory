@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load common %}
 
 {% block nav %}{% endblock %}
 
@@ -24,7 +25,7 @@
       <tr>
         <td><a href="{{ i.get_absolute_url }}">{{ i.name }}</a></td>
         <td><strong>{{ i.latest_record.print_quantity }}</strong></td>
-        <td>{{ i.latest_record.added }}</td>
+        <td>{% time_since i.latest_record.added %}</td>
         <td></td>
       </tr>
       {% endfor %}
