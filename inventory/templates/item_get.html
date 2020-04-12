@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load common %}
 
+{% block title %}{{ item.name }}{% endblock %}
+
 {% block header %}
 <h1>{{ item.name }}</h1>
 <p>Created {% format_time item.added %}</p>
