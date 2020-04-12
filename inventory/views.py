@@ -12,6 +12,7 @@ from . import forms, models
 
 # TODO: Relative readable dates, eg 'just now', 'a day ago' and 2 months ago'
 # TODO: Initial quantity on adding item
+# TODO: Functionality to add extra items in an update form
 # TODO: Update item preferred unit if different unit used in posting record
 # TODO: Group choices by base measurement when posting items
 # TODO: Add fancy graphs
@@ -137,31 +138,17 @@ class AddRecord(View):
             )
 
 
-# TODO: Fewer more efficient SQL queries
-# TODO: Autogenerate form?
-# TODO: Validate values entered for update table
-
-
 class Update(View):
     def get(self, request):
         items = models.Item.objects.prefetch_related("records").order_by("name")
         for i in items:
             i.get_latest_record()
-
-        return render(request, "update.html", {"list_items": items})
+        to_update = forms.generate_update_form(items)()
+        return render(request, "update.html", {"update": to_update})
 
     def post(self, request):
-        note = request.POST["note"]
-        for name in request.POST:
-            if not name.startswith("item-") or not request.POST[name]:
-                continue
-            value = request.POST[name]
-            ident = name[5:]
-            item = models.Item.objects.get(ident=ident)
-            if not item:
-                raise Http404(f"food item {ident!r} not found")
-
-            new = models.Record(item=item, quantity=value, note=note)
-            new.save()
-
+        items = models.Item.objects.prefetch_related("records").order_by("name")
+        to_update = forms.generate_update_form(items)(request.POST)
+        if to_update.is_valid():
+            to_update.save()
         return redirect("index")

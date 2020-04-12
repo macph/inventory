@@ -1,13 +1,20 @@
 {% extends 'base.html' %}
 
 {% block header %}
-<h1>Update records</h1>
+<h1>update records</h1>
 {% endblock %}
 
 {% block main %}
-{% if list_items %}
+{% if update.errors and update.non_field_errors %}
 <section>
-  <form id="update-records" action="{% url 'update' %}" method="post">
+  {% for error in update.non_field_errors %}
+    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+</section>
+{% endif %}
+{% if update.items %}
+<section>
+  <form action="{% url 'update' %}" method="post">
     {% csrf_token %}
     <table>
       <thead>
@@ -18,21 +25,24 @@
         </tr>
       </thead>
       <tbody>
-        {% for i in list_items %}
-        {% with id="item-"|add:i.ident %}
+        {% for ui in update.iter_items %}
         <tr>
-          <td><label for="{{ id }}">{{ i.name }}</label></td>
-          <td>{{ i.latest_record.print_quantity }}</td>
-          <td><input id="{{ id }}" name="{{ id }}" form="update-records" type="number"></td>
+          <td><label for="{{ ui.field.id_for_label }}">{{ ui.item.name }}</label></td>
+          <td>{{ ui.item.latest_record.print_quantity }}</td>
+          <td>{{ ui.field }}</td>
         </tr>
-        {% endwith %}
+        {% for error in ui.field.errors %}
+        <tr>
+          <td rowspan="3" style="color: red"><strong>{{ error|escape }}</strong></td>
+        </tr>
+        {% endfor %}
         {% endfor %}
       </tbody>
     </table>
     <hr>
     <label for="update-note">Note:</label>
-    <textarea id="update-note" form="update-records" name="note"></textarea>
-    <button form="update-records" type="submit">Update</button>
+    <textarea id="update-note" name="note"></textarea>
+    <button type="submit">Update</button>
     <a href="{% url 'index' %}"><em>Back</em></a>
   </form>
 </section>
