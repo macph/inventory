@@ -14,7 +14,6 @@ from . import forms, models
 # TODO: Functionality to add extra items in an update form
 # TODO: Separate forms for multiple objects
 # TODO: Raw SQL queries to avoid n+1 queries
-# TODO: Group choices by base measurement when posting items
 # TODO: Add fancy graphs
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins

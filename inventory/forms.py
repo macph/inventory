@@ -9,28 +9,29 @@ from django.db.transaction import atomic
 from django.forms import (
     BaseForm,
     CharField,
+    ChoiceField,
     DecimalField,
     ModelChoiceField,
     ModelForm,
-    NumberInput,
     Textarea,
+    TextInput,
 )
 from django.utils.text import slugify
 from django.utils.timezone import now
 
-from .models import DP_QUANTITY, Item, MAX_DIGITS, Record, Unit
-
+from .models import DP_QUANTITY, Item, MAX_DIGITS, Record, Unit, UnitEnum
 
 MIN_DOUBLE_POST = timedelta(minutes=1)
 
 
-def decimal_field(required=True, **kwargs):
+def decimal_field(**kwargs):
     return DecimalField(
         min_value=0,
         max_digits=MAX_DIGITS,
         decimal_places=DP_QUANTITY,
-        required=required,
-        widget=NumberInput(attrs=dict(min="0", step="1")),
+        widget=TextInput(
+            attrs={"inputmode": "decimal", "pattern": "^$|([0-9]+.?[0-9]*)|(.[0-9]+)"}
+        ),
         **kwargs,
     )
 
@@ -42,8 +43,21 @@ class AddItemForm(ModelForm):
 
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
-    minimum = decimal_field(False)
-    initial = decimal_field(False)
+    unit = ChoiceField()
+    minimum = decimal_field(required=False)
+    initial = decimal_field(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._units = Unit.objects.order_by("pk").all()
+
+        def collect_units(unit):
+            label = unit.label
+            pairs = tuple((u.pk, u.symbol) for u in self._units if u.measure == unit)
+            return label, pairs
+
+        self.fields["unit"].choices = list(map(collect_units, UnitEnum))
+        self.fields["unit"].initial = self._units[0].pk
 
     def clean_name(self):
         name = self.cleaned_data["name"]
@@ -51,6 +65,14 @@ class AddItemForm(ModelForm):
         if Item.objects.filter(ident=slugify(name)).exists():
             raise ValidationError(f"Item name already exists.", code="invalid")
         return name
+
+    def clean_unit(self):
+        pk = int(self.cleaned_data["unit"])
+        for unit in self._units:
+            if pk == unit.pk:
+                return unit
+        else:
+            raise ValidationError("Unit of measurement does not exist")
 
     def clean_minimum(self):
         return self.cleaned_data["minimum"] or 0
@@ -76,7 +98,7 @@ class EditItemForm(ModelForm):
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
     unit = ModelChoiceField(None, empty_label=None)
-    minimum = decimal_field(False)
+    minimum = decimal_field(required=False)
 
     def __init__(self, *args, **kwargs):
         if "original" in kwargs:
@@ -117,7 +139,9 @@ class AddRecordForm(ModelForm):
 
     def clean(self):
         unit = self.cleaned_data["unit"]
-        quantity = self.cleaned_data["quantity"]
+        quantity = self.cleaned_data.get("quantity")
+        if quantity is None:
+            return super().clean()
 
         if self.parent_item.unit.measure != unit.measure:
             raise ValidationError(
