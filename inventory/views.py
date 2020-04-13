@@ -2,6 +2,7 @@
 Inventory views
 
 """
+from django.db.transaction import atomic
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils.text import slugify
@@ -17,13 +18,10 @@ from . import forms, models
 # TODO: Add fancy graphs
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
-# TODO: Update latest record instead of adding within a small time period
 
 
 def index(request):
     items = models.Item.objects.prefetch_related("records").order_by("name")
-    for i in items:
-        i.get_latest_record()
 
     return render(request, "index.html", {"list_items": items})
 
@@ -36,7 +34,8 @@ class AddItem(View):
     def post(self, request):
         new_item = forms.AddItemForm(request.POST)
         if new_item.is_valid():
-            new_item = new_item.save()
+            with atomic():
+                new_item = new_item.save()
             if request.POST.get("another"):
                 # return blank form for adding new item
                 form = forms.AddItemForm()
@@ -81,7 +80,8 @@ class GetItem(View):
 
         updated_item = forms.EditItemForm(request.POST, instance=item)
         if updated_item.is_valid():
-            updated_item = updated_item.save()
+            with atomic():
+                updated_item = updated_item.save()
             # go to new item page
             return redirect(updated_item)
         else:
@@ -107,7 +107,8 @@ class DeleteItem(View):
         if not item:
             return Http404(f"food item {ident!r} not found")
 
-        item.delete()
+        with atomic():
+            item.delete()
 
         return redirect("index")
 
@@ -122,9 +123,10 @@ class AddRecord(View):
         new_record = forms.AddRecordForm(request.POST, parent_item=item)
         if new_record.is_valid():
             # assign foreign key manually
-            new_record.save(commit=False)
-            new_record.instance.item = item
-            new_record.save()
+            with atomic():
+                new_record.save(commit=False)
+                new_record.instance.item = item
+                new_record.save()
             # go to item page
             return redirect(item)
         else:
@@ -140,8 +142,6 @@ class AddRecord(View):
 class Update(View):
     def get(self, request):
         items = models.Item.objects.prefetch_related("records").order_by("name")
-        for i in items:
-            i.get_latest_record()
         to_update = forms.generate_update_form(items)()
         return render(request, "update.html", {"update": to_update})
 

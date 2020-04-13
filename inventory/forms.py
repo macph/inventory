@@ -2,7 +2,10 @@
 Forms for inventory models
 
 """
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
+from django.db.transaction import atomic
 from django.forms import (
     BaseForm,
     CharField,
@@ -13,8 +16,12 @@ from django.forms import (
     Textarea,
 )
 from django.utils.text import slugify
+from django.utils.timezone import now
 
 from .models import DP_QUANTITY, Item, MAX_DIGITS, Record, Unit
+
+
+MIN_DOUBLE_POST = timedelta(minutes=1)
 
 
 def decimal_field(required=True, **kwargs):
@@ -49,12 +56,14 @@ class AddItemForm(ModelForm):
         return self.cleaned_data["minimum"] or 0
 
     def save(self, commit=True):
-        instance = super().save(commit)
-        initial = self.cleaned_data["initial"]
-        if initial and commit:
-            quantity = round(initial * instance.unit.convert, DP_QUANTITY)
-            new_record = Record(item=instance, quantity=quantity, note="initial")
-            new_record.save()
+        with atomic():
+            instance = super().save(commit)
+            initial = self.cleaned_data["initial"]
+            if initial and commit:
+                quantity = round(initial * instance.unit.convert, DP_QUANTITY)
+                new_record = Record(item=instance, quantity=quantity, note="initial")
+                new_record.save()
+
         return instance
 
 
@@ -121,12 +130,28 @@ class AddRecordForm(ModelForm):
         return super().clean()
 
     def save(self, commit=True):
-        instance = super().save(commit)
-        unit = self.cleaned_data["unit"]
-        if commit and self.parent_item.unit != unit:
-            # Set item preferred unit to latest
-            self.parent_item.unit = unit
-            self.parent_item.save()
+        added = now()
+        with atomic():
+            if (
+                self.parent_item.latest_record
+                and added - self.parent_item.latest_record.added < MIN_DOUBLE_POST
+            ):
+                # modify latest record
+                instance = self.parent_item.latest_record
+                instance.added = added
+                instance.quantity = self.instance.quantity
+                if commit:
+                    instance.save()
+            else:
+                # create new record
+                instance = super().save(commit)
+
+            unit = self.cleaned_data["unit"]
+            if commit and self.parent_item.unit != unit:
+                # Set item preferred unit to latest
+                self.parent_item.unit = unit
+                self.parent_item.save()
+
         return instance
 
 
@@ -170,19 +195,38 @@ def generate_update_form(items):
     def save(this):
         if this.errors:
             raise ValueError("Cannot save records because the data didn't validate.")
-        records = []
+        added = now()
+        new_records = []
+        updated_records = []
+        all_records = []
         for item in this.items:
             if item.ident not in this.cleaned_data["values"]:
                 continue
-            new_record = Record(
-                item=item,
-                quantity=this.cleaned_data["values"][item.ident],
-                note=this.cleaned_data["note"],
-            )
-            records.append(new_record)
+            if added - item.latest_record.added < MIN_DOUBLE_POST:
+                # update latest record for item
+                instance = item.latest_record
+                instance.added = added
+                instance.quantity = this.cleaned_data["values"][item.ident]
+                updated_records.append(instance)
+            else:
+                # create new record for item
+                instance = Record(
+                    item=item,
+                    quantity=this.cleaned_data["values"][item.ident],
+                    note=this.cleaned_data["note"],
+                )
+                new_records.append(instance)
+            all_records.append(instance)
 
-        Record.objects.bulk_create(records)
-        return records
+        with atomic():
+            if new_records:
+                Record.objects.bulk_create(new_records)
+            if updated_records:
+                Record.objects.bulk_update(
+                    updated_records, fields=("added", "quantity")
+                )
+
+        return all_records
 
     def iter_items(this):
         for j in items:

@@ -19,8 +19,9 @@ from django.db.models import (
 )
 from django.contrib.postgres.fields import CITextField
 from django.urls import reverse
+from django.utils.functional import cached_property
 from django.utils.text import slugify
-
+from django.utils.timezone import now
 
 MAX_DIGITS = 12
 DP_CONVERT = 6
@@ -97,11 +98,13 @@ class Item(Model):
         default=0,
         validators=(MinValueValidator(0),),
     )
-    added = DateTimeField(auto_now=True)
+    added = DateTimeField()
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
+        if not self.id:
+            self.added = now()
         if not self.ident:
             self.ident = slugify(self.name)
         super().save(force_insert, force_update, using, update_fields)
@@ -112,11 +115,12 @@ class Item(Model):
     def get_absolute_url(self):
         return reverse("item_get", args=(self.ident,))
 
-    def get_latest_record(self):
+    @cached_property
+    def latest_record(self):
         try:
-            self.latest_record = self.records.latest("added")
+            return self.records.latest("added")
         except Record.DoesNotExist:
-            self.latest_record = None
+            return None
 
     def compatible_units(self):
         base = self.unit.measure
