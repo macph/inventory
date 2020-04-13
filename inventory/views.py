@@ -11,7 +11,8 @@ from . import forms, models
 
 
 # TODO: Functionality to add extra items in an update form
-# TODO: Update item preferred unit if different unit used in posting record
+# TODO: Separate forms for multiple objects
+# TODO: Raw SQL queries to avoid n+1 queries
 # TODO: Group choices by base measurement when posting items
 # TODO: Add fancy graphs
 # TODO: Convert between wider range of units, possibly with some sort of conversion

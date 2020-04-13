@@ -117,10 +117,17 @@ class AddRecordForm(ModelForm):
 
         # convert quantity to base unit
         self.cleaned_data["quantity"] = round(quantity * unit.convert, DP_QUANTITY)
-        # don't need unit any more
-        del self.cleaned_data["unit"]
 
         return super().clean()
+
+    def save(self, commit=True):
+        instance = super().save(commit)
+        unit = self.cleaned_data["unit"]
+        if commit and self.parent_item.unit != unit:
+            # Set item preferred unit to latest
+            self.parent_item.unit = unit
+            self.parent_item.save()
+        return instance
 
 
 class UpdateItem:
