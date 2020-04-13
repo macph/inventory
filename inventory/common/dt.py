@@ -4,19 +4,14 @@ Datetime utility functions
 """
 from calendar import monthrange
 from datetime import date, datetime, timedelta
+from enum import Enum
 from typing import Optional
 
 from django.utils.timezone import now as tz_now
 
 
-# TODO: natural day & time, eg yesterday or next Monday
-
-
-def _calendar_delta(
-    dt: datetime, years: int = 0, months: int = 0, days: int = 0
-) -> datetime:
+def _calendar_delta(dt: date, years: int = 0, months: int = 0, days: int = 0) -> date:
     d = date(dt.year + years, dt.month, dt.day)
-
     if months != 0:
         delta = d.month + months
         # floor division, should work for positive and negative delta
@@ -28,21 +23,12 @@ def _calendar_delta(
         d = date(new_year, new_month, min(d.day, num_days))
     if days != 0:
         d = d + timedelta(days=days)
-
-    return datetime(
-        d.year,
-        d.month,
-        d.day,
-        dt.hour,
-        dt.minute,
-        dt.second,
-        dt.microsecond,
-        dt.tzinfo,
-    )
+    # both date and datetime has this method
+    return dt.replace(year=d.year, month=d.month, day=d.day)
 
 
 def _calendar_count(
-    first: datetime, second: datetime, years: int = 0, months: int = 0, days: int = 0
+    first: date, second: date, years: int = 0, months: int = 0, days: int = 0
 ) -> int:
     assert first < second, "first datetime must be before second"
 
@@ -60,8 +46,20 @@ def _calendar_count(
     return count
 
 
-def since(then: datetime, now: Optional[datetime] = None) -> str:
-    other = now or tz_now()
+def since(then: date, now: Optional[date] = None) -> str:
+    # check if this is date or datetime - if former, extract date from other
+    # we want both to be the same
+    other: date
+    has_time = hasattr(then, "hour")
+    if has_time and now is None:
+        other = tz_now()
+    elif has_time and hasattr(now, "hour"):
+        other = now
+    elif has_time:
+        raise TypeError("the latter argument must be a datetime to match the former")
+    else:
+        _now: date = now or tz_now()
+        other = date(_now.year, _now.month, _now.day)
 
     if then >= other:
         past, first, second = False, other, then
@@ -69,16 +67,19 @@ def since(then: datetime, now: Optional[datetime] = None) -> str:
         past, first, second = True, then, other
 
     diff = second - first
-    ago = " ago" if past else ""
 
-    if diff < timedelta(minutes=1):
+    if not has_time and not diff:
+        return "today"
+    if has_time and diff < timedelta(minutes=1):
         return "just now" if past else "now"
 
-    if diff < timedelta(hours=1):
+    ago = " ago" if past else ""
+
+    if has_time and diff < timedelta(hours=1):
         minutes = round(diff.total_seconds() / 60)
         return f"a minute{ago}" if minutes == 1 else f"{minutes} minutes{ago}"
 
-    if first > _calendar_delta(second, days=-1):
+    if has_time and first > _calendar_delta(second, days=-1):
         hours = round(diff.total_seconds() / 3600)
         return f"a hour{ago}" if hours == 1 else f"{hours} hours{ago}"
 
@@ -96,3 +97,80 @@ def since(then: datetime, now: Optional[datetime] = None) -> str:
 
     years = _calendar_count(first, second, years=1)
     return f"a years{ago}" if years == 1 else f"{years} years{ago}"
+
+
+class _ND(Enum):
+    (
+        YEAR_BEFORE,
+        LAST_YEAR,
+        THIS_YEAR,
+        LAST_WEEK,
+        THIS_WEEK,
+        YESTERDAY,
+        TODAY,
+        WITH_TIME,
+        TOMORROW,
+        NEXT_WEEK,
+        NEXT_YEAR,
+        YEAR_AFTER,
+    ) = range(12)
+
+    def format(self, dt: datetime) -> str:
+        fmt = [
+            "%B %Y",
+            "last %B",
+            "%-d %B",
+            "last %A",
+            "%A",
+            "yesterday",
+            "today",
+            "%H:%M",
+            "tomorrow",
+            "next %A",
+            "next %B",
+            "%B %Y",
+        ]
+        return dt.strftime(fmt[self.value])
+
+
+def _natural_date(then: date, now: Optional[date] = None) -> _ND:
+    # Work on dates only
+    then_d = date(then.year, then.month, then.day)
+    _now = now or tz_now()
+    now_d = date(_now.year, _now.month, _now.day)
+
+    if then_d == now_d:
+        return _ND.WITH_TIME if hasattr(then, "hour") else _ND.TODAY
+    # Check if days are adjacent
+    elif then_d == _calendar_delta(now_d, days=-1):
+        return _ND.YESTERDAY
+    elif then_d == _calendar_delta(now_d, days=1):
+        return _ND.TODAY
+
+    # calculate weeks before and after now and check if date lie within these ranges
+    this_week = _calendar_delta(now_d, days=-now_d.weekday())
+    last_week = _calendar_delta(this_week, days=-7)
+    next_week = _calendar_delta(this_week, days=7)
+    fortnight = _calendar_delta(this_week, days=14)
+    if last_week <= then_d < this_week:
+        return _ND.LAST_WEEK
+    elif this_week <= then_d < next_week:
+        return _ND.THIS_WEEK
+    elif next_week <= then_d < fortnight:
+        return _ND.NEXT_WEEK
+
+    # check rest of year
+    elif then_d.year < now_d.year - 1:
+        return _ND.YEAR_BEFORE
+    elif then_d.year == now_d.year - 1:
+        return _ND.LAST_YEAR
+    elif then_d.year == now_d.year + 1:
+        return _ND.NEXT_YEAR
+    elif then_d.year > now_d.year + 1:
+        return _ND.YEAR_AFTER
+    else:
+        return _ND.THIS_YEAR
+
+
+def natural(then: datetime, now: Optional[datetime] = None) -> str:
+    return _natural_date(then, now).format(then)

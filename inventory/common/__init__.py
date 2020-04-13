@@ -1,1 +1,1 @@
-from .dt import since
+from .dt import natural, since
