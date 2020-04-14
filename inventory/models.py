@@ -12,6 +12,7 @@ from django.db.models import (
     IntegerChoices,
     IntegerField,
     Model,
+    Prefetch,
     Q,
     TextField,
     CASCADE,
@@ -19,7 +20,6 @@ from django.db.models import (
 )
 from django.contrib.postgres.fields import CITextField
 from django.urls import reverse
-from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.timezone import now
 
@@ -112,19 +112,34 @@ class Item(Model):
     def __str__(self):
         return str(self.name)
 
+    @classmethod
+    def with_records(cls, asc=False):
+        order = "added" if asc else "-added"
+        ordered = Prefetch("records", Record.objects.order_by(order))
+        return (
+            cls.objects.order_by("name")
+            .select_related("unit")
+            .prefetch_related(ordered)
+        )
+
+    @classmethod
+    def with_latest_record(cls):
+        latest = Prefetch(
+            "records",
+            Record.objects.order_by("item_id", "-added").distinct("item_id"),
+            "latest_records",
+        )
+        return (
+            cls.objects.order_by("name").select_related("unit").prefetch_related(latest)
+        )
+
     def get_absolute_url(self):
         return reverse("item_get", args=(self.ident,))
 
-    @cached_property
+    @property
     def latest_record(self):
-        try:
-            return self.records.latest("added")
-        except Record.DoesNotExist:
-            return None
-
-    def compatible_units(self):
-        base = self.unit.measure
-        return Unit.objects.filter(measure=base).all()
+        records = getattr(self, "latest_records")
+        return records[0] if records else None
 
 
 class Record(Model):

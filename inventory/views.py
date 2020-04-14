@@ -13,15 +13,13 @@ from . import forms, models
 
 # TODO: Functionality to add extra items in an update form
 # TODO: Separate forms for multiple objects
-# TODO: Raw SQL queries to avoid n+1 queries
 # TODO: Add fancy graphs
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
 
 
 def index(request):
-    items = models.Item.objects.prefetch_related("records").order_by("name")
-
+    items = models.Item.with_latest_record()
     return render(request, "index.html", {"list_items": items})
 
 
@@ -53,9 +51,7 @@ class AddItem(View):
 class GetItem(View):
     def get(self, request, ident):
         # leave flexible to allow for manual URL input
-        item = models.Item.objects.prefetch_related("unit", "records").get(
-            ident__iexact=slugify(ident)
-        )
+        item = models.Item.with_records().get(ident__iexact=slugify(ident))
         if not item:
             return Http404(f"food item {ident!r} not found")
         elif item.ident != ident:
@@ -73,7 +69,7 @@ class GetItem(View):
 
     def post(self, request, ident):
         # submitted via a POST form so we're expecting an exact match
-        item = models.Item.objects.prefetch_related("unit", "records").get(ident=ident)
+        item = models.Item.with_latest_record().get(ident=ident)
         if not item:
             return Http404(f"food item {ident!r} not found")
 
@@ -115,7 +111,7 @@ class DeleteItem(View):
 class AddRecord(View):
     def post(self, request, ident):
         # submitted via a POST form so we're expecting an exact match
-        item = models.Item.objects.prefetch_related("unit").get(ident=ident)
+        item = models.Item.with_latest_record().get(ident=ident)
         if not item:
             return Http404(f"food item {ident!r} not found")
 
@@ -130,7 +126,6 @@ class AddRecord(View):
             return redirect(item)
         else:
             edit_item = forms.EditItemForm()
-            item.all_records = item.records.all()
             return render(
                 request,
                 "item_get.html",
@@ -140,12 +135,12 @@ class AddRecord(View):
 
 class Update(View):
     def get(self, request):
-        items = models.Item.objects.prefetch_related("records").order_by("name")
+        items = models.Item.with_latest_record()
         to_update = forms.generate_update_form(items)()
         return render(request, "update.html", {"update": to_update})
 
     def post(self, request):
-        items = models.Item.objects.prefetch_related("records").order_by("name")
+        items = models.Item.with_latest_record()
         to_update = forms.generate_update_form(items)(request.POST)
         if to_update.is_valid():
             to_update.save()
