@@ -2,6 +2,8 @@
 Inventory models
 
 """
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db.models import (
@@ -140,6 +142,15 @@ class Item(Model):
     def latest_record(self):
         records = getattr(self, "latest_records")
         return records[0] if records else None
+
+    def expected_end(self):
+        average = getattr(self, "average")
+        # calculate expected end only if latest record exists with non-zero quantity
+        if self.latest_record is not None and self.latest_record.quantity and average:
+            days = float(self.latest_record.quantity / average)
+            return self.latest_record.added + timedelta(days=days)
+        else:
+            return None
 
 
 class Record(Model):

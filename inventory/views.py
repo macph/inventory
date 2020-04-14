@@ -9,6 +9,7 @@ from django.utils.text import slugify
 from django.views.generic import View
 
 from . import forms, models
+from .operations import find_average_use
 
 
 # TODO: Functionality to add extra items in an update form
@@ -20,6 +21,7 @@ from . import forms, models
 
 def index(request):
     items = models.Item.with_latest_record()
+    find_average_use(items)
     return render(request, "index.html", {"list_items": items})
 
 

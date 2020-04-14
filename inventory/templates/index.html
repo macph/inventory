@@ -26,7 +26,7 @@
         <td><a href="{{ i.get_absolute_url }}">{{ i.name }}</a></td>
         <td><strong>{{ i.latest_record.print_quantity }}</strong></td>
         <td>{% time_since i.latest_record.added %}</td>
-        <td></td>
+        <td>{% time_since i.expected_end.date %}</td>
       </tr>
       {% endfor %}
     </tbody>
