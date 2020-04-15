@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
 {% load common %}
+{% load static %}
+
+{% block head %}
+<script src="{% static 'd3.min.js' %}" defer></script>
+<script src="{% static 'index.js' %}" defer></script>
+{% endblock %}
 
 {% block nav %}{% endblock %}
 
@@ -9,7 +15,7 @@
 {% endblock %}
 
 {% block main %}
-<section>
+<section id="table-items">
   {% if list_items %}
   <table>
     <thead>
@@ -35,10 +41,23 @@
   <p>Add a food item to start</p>
   {% endif %}
 </section>
-<section>
+<article id="chart-container">
+</article>
+<section id="actions">
 <p>
   <a href="{% url 'item_add' %}"><em>Add food item</em></a>
   {% if list_items %}<a href="{% url 'update' %}"><em>Update records</em></a>{% endif %}
 </p>
 </section>
+<script>
+const DATA = JSON.parse('{{ data|safe }}');
+
+window.addEventListener("load", () => {
+    const container = document.getElementById("chart-container");
+    const chart = createChart(DATA);
+    if (chart) {
+        container.appendChild(chart.node());
+    }
+});
+</script>
 {% endblock %}

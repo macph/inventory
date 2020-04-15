@@ -2,6 +2,9 @@
 Inventory views
 
 """
+from json import dumps
+
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.transaction import atomic
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -14,15 +17,35 @@ from .operations import find_average_use
 
 # TODO: Functionality to add extra items in an update form
 # TODO: Separate forms for multiple objects
-# TODO: Add fancy graphs
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
+
+
+def serialize_records(item=None):
+    items = models.Item.with_records(asc=True)
+    find_average_use(items)
+    if item is not None:
+        items = items.filter(id=item.id)
+
+    array = []
+    for i in items:
+        d_item = {
+            "name": i.name,
+            "ident": i.ident,
+            "min": i.minimum,
+            "avg": i.average,
+            "records": [{"q": r.quantity, "a": r.added} for r in i.records.all()],
+        }
+        array.append(d_item)
+
+    return array
 
 
 def index(request):
     items = models.Item.with_latest_record()
     find_average_use(items)
-    return render(request, "index.html", {"list_items": items})
+    data = dumps(serialize_records(), cls=DjangoJSONEncoder)
+    return render(request, "index.html", {"list_items": items, "data": data})
 
 
 class AddItem(View):
