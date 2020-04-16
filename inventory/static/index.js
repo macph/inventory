@@ -180,6 +180,9 @@ class OrderedTable {
 // chart based on:
 // https://observablehq.com/@d3/line-chart
 // https://observablehq.com/@d3/multi-line-chart
+// https://observablehq.com/@d3/zoomable-area-chart
+
+// TODO: Initial range covering last and next 7 days?
 
 
 function calculateEnd(date, initial, average, endDate) {
@@ -227,6 +230,16 @@ function collect(input) {
     };
 }
 
+function getUniqueId(name) {
+    let count = 0;
+    let id = name;
+    while (document.getElementById(id)) {
+        count++;
+        id = name + '-' + count;
+    }
+    return id;
+}
+
 function createChart(input) {
     const height = 300;
     const width = 600;
@@ -234,36 +247,51 @@ function createChart(input) {
 
     const data = collect(input);
 
-    const x = d3.scaleUtc()
+    // x- and y-axis scaling
+    const x0 = d3.scaleUtc()
         .domain(data.dates)
         .range([margin.left, width - margin.right]);
-
-    const y = d3.scaleLinear()
+    const y0 = d3.scaleLinear()
         .domain(data.values)
         .range([height - margin.bottom, margin.top])
         .nice();
 
-    const xAxis = g => g
+    // x- and y-axis definitions
+    const xAxis = (g, x) => g
         .attr("transform", `translate(0, ${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
-
-    const yAxis = g => g
+    const yAxis = (g, y) => g
         .attr("transform", `translate(${margin.left}, 0)`)
         .call(d3.axisLeft(y).ticks(2))
         .call(g => g.select(".domain").remove())
 
+    // path generation
+    const line = (d, x) => d3.line()
+        // .curve(d3.curveStepAfter)
+        .defined(d => !isNaN(d.value))
+        .x(d => x(d.date))
+        .y(d => y0(d.value))(d);
+
+    // base svg container
     const svg = d3.create("svg")
         .attr("viewBox", [0, 0, width, height]);
 
-    const line = d3.line()
-        .defined(d => !isNaN(d.value))
-        .x(d => x(d.date))
-        .y(d => y(d.value));
+    // clip path to contain all paths within axes
+    const clipId = getUniqueId("clip");
+    svg.append("clipPath")
+        .attr("id", clipId)
+        .append("rect")
+        .attr("x", margin.left)
+        .attr("y", margin.top)
+        .attr("width", width - margin.left - margin.right)
+        .attr("height", height - margin.top - margin.bottom);
 
-    svg.append("g").call(xAxis);
-    svg.append("g").call(yAxis);
+    // append axes to svg container
+    const gx = svg.append("g").call(xAxis, x0);
+    svg.append("g").call(yAxis, y0);
 
-    svg.append("g")
+    // append all paths from existing data
+    const past = svg.append("g")
         .attr("fill", "none")
         .attr("stroke", "steelblue")
         .attr("stroke-width", 1.5)
@@ -272,9 +300,11 @@ function createChart(input) {
         .data(data.existing)
         .join("path")
         .style("mix-blend-mode", "multiply")
-        .attr("d", l => line(l));
+        .attr("clip-path", "url(#" + clipId + ")")
+        .attr("d", l => line(l, x0));
 
-    svg.append("g")
+    // append all paths from projected data
+    const future = svg.append("g")
         .attr("fill", "none")
         .attr("stroke", "steelblue")
         .attr("stroke-width", 1.5)
@@ -284,7 +314,30 @@ function createChart(input) {
         .data(data.projected)
         .join("path")
         .style("mix-blend-mode", "multiply")
-        .attr("d", l => line(l));
+        .attr("clip-path", "url(#" + clipId + ")")
+        .attr("d", l => line(l, x0));
+
+    // event handler for zoom and drag
+    // scale axis and apply newly scaled data to current paths
+    function zoomed() {
+        const xz = d3.event.transform.rescaleX(x0);
+        past.data(data.existing).call(p => p.attr("d", l => line(l, xz)));
+        future.data(data.projected).call(p => p.attr("d", l => line(l, xz)));
+        gx.call(xAxis, xz);
+    }
+
+    // set up zoom functionality
+    const zoom = d3.zoom()
+        .scaleExtent([1, 32])
+        .extent([[margin.left, 0], [width - margin.right, height]])
+        .translateExtent([[margin.left, -Infinity], [width - margin.right, Infinity]])
+        .on("zoom", zoomed);
+
+    // initial zoom
+    svg.call(zoom)
+        .transition()
+        .duration(750)
+        .call(zoom.scaleTo, 4, [x0(data.dates[1]), 0]);
 
     return svg;
 }
