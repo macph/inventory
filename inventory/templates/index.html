@@ -15,24 +15,26 @@
 {% endblock %}
 
 {% block main %}
-<section id="table-items">
+<section>
   {% if list_items %}
-  <table>
+  <table id="table-items">
     <thead>
       <tr>
         <th>Food item</th>
-        <th>Quantity</th>
-        <th>Last updated</th>
-        <th>How long left?</th>
+        <th data-column-type="float">Quantity</th>
+        <th data-column-type="date" data-column-reverse="yes">Last updated</th>
+        <th data-column-name="time remaining" data-column-type="date">How long left?</th>
       </tr>
     </thead>
     <tbody>
       {% for i in list_items %}
       <tr>
         <td><a href="{{ i.get_absolute_url }}">{{ i.name }}</a></td>
-        <td><strong>{{ i.latest_record.print_quantity }}</strong></td>
-        <td>{% time_since i.latest_record.added %}</td>
-        <td>{% time_since i.expected_end.date %}</td>
+        <td data-column-key="{% if i.latest_record.quantity is not None %}{{ i.latest_record.quantity }}{% endif %}"><strong>{{ i.latest_record.print_quantity }}</strong></td>
+        <td data-column-key="{% if i.latest_record.added is not None %}{% timestamp i.latest_record.added %}{% endif %}">{% time_since i.latest_record.added %}</td>
+        {% with end=i.expected_end %}
+        <td data-column-key="{% if end is not None %}{% timestamp end %}{% endif %}">{% time_since end.date %}</td>
+        {% endwith %}
       </tr>
       {% endfor %}
     </tbody>
@@ -43,7 +45,7 @@
 </section>
 <article id="chart-container">
 </article>
-<section id="actions">
+<section>
 <p>
   <a href="{% url 'item_add' %}"><em>Add food item</em></a>
   {% if list_items %}<a href="{% url 'update' %}"><em>Update records</em></a>{% endif %}
@@ -57,6 +59,12 @@ window.addEventListener("load", () => {
     const chart = createChart(DATA);
     if (chart) {
         container.appendChild(chart.node());
+    }
+});
+window.addEventListener("load", () => {
+    const table = document.getElementById("table-items");
+    if (table) {
+        new OrderedTable(table, 0, 1);
     }
 });
 </script>

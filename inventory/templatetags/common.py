@@ -42,3 +42,8 @@ def natural_date(context: Context, dt: Optional[date]) -> str:
         request.now = now()
     local_dt = localtime(dt) if hasattr(dt, "hour") else dt
     return natural(local_dt, localtime(request.now))
+
+
+@register.simple_tag
+def timestamp(dt: Optional[datetime]) -> Optional[int]:
+    return int(dt.timestamp() * 1000) if dt else None

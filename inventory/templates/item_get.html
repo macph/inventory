@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
 {% load common %}
+{% load static %}
+
+{% block head %}
+<script src="{% static 'index.js' %}" defer></script>
+{% endblock %}
 
 {% block title %}{{ item.name }}{% endblock %}
 
@@ -11,15 +16,15 @@
 {% block main %}
 <section>
   {% if item.all_records %}
-  <table>
+  <table id="table-records">
     <thead>
       <tr>
-        <th>Added</th>
+        <th data-column-type="date" data-column-reverse="yes">Added</th>
         {% with unit=item.unit.display %}
         {% if unit %}
-        <th>Quantity ({{ unit }})</th>
+        <th data-column-type="float" data-column-name="quantity">Quantity ({{ unit }})</th>
         {% else %}
-        <th>Quantity</th>
+        <th data-column-type="float">Quantity</th>
         {% endif %}
         {% endwith %}
       </tr>
@@ -27,8 +32,8 @@
     <tbody>
       {% for r in item.all_records %}
       <tr>
-        <td>{% time_since r.added %}</td>
-        <td><strong>{{ r.format_quantity }}</strong></td>
+        <td data-column-key="{% timestamp r.added %}">{% time_since r.added %}</td>
+        <td data-column-key="{{ r.quantity }}"><strong>{{ r.format_quantity }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -104,4 +109,12 @@
 <section>
   <a href="{% url 'item_delete' item.ident %}"><em>Delete item</em></a>
 </section>
+<script>
+window.addEventListener("load", () => {
+    const table = document.getElementById("table-records");
+    if (table) {
+        new OrderedTable(table, 0, 1);
+    }
+});
+</script>
 {% endblock %}
