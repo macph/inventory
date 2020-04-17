@@ -55,11 +55,7 @@
 const DATA = JSON.parse('{{ data|safe }}');
 
 window.addEventListener("load", () => {
-    const container = document.getElementById("chart-container");
-    const chart = createChart(DATA);
-    if (chart) {
-        container.appendChild(chart.node());
-    }
+    new InventoryChart("chart-container", DATA);
 });
 window.addEventListener("load", () => {
     const table = document.getElementById("table-items");

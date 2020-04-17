@@ -184,51 +184,9 @@ class OrderedTable {
 
 // TODO: Initial range covering last and next 7 days?
 
+const DAY = 1000 * 60 * 60 * 24;
+const WEEK = DAY * 7;
 
-function calculateEnd(date, initial, average, endDate) {
-    if (average) {
-        const day = 1000 * 60 * 60 * 24;
-        const seconds = day * initial / average;
-        const newDate = date + seconds;
-        if (newDate <= endDate) {
-            return {date: newDate, value: 0};
-        } else {
-            const endValue = initial - average * (endDate - date) / day;
-            return {date: endDate, value: endValue};
-        }
-    } else {
-        return {date: endDate, value: initial};
-    }
-}
-
-
-function collect(input) {
-    const week = 1000 * 60 * 60 * 24 * 7;
-    const realData = input.filter(i => i.records.length >= 2);
-
-    const averages = realData.map(g => parseFloat(g.avg) || null);
-    const dateRange = d3.extent(realData.flatMap(g => g.records.map(r => Date.parse(r.a))));
-    const valueRange = [0, d3.max(realData.flatMap(g => g.records.map(r => parseFloat(r.q))))];
-    const existing = realData.map(g => g.records.map(r => (
-        { date: Date.parse(r.a), value: parseFloat(r.q) }
-    )));
-
-    const end = dateRange[1] + week;
-    const projected = existing.map((g, i) => {
-        const last = g[g.length - 1];
-        const predicted = calculateEnd(last.date, last.value, averages[i], end);
-        return [last, predicted];
-    });
-
-    return {
-        items: realData.map(i => i.name),
-        averages: averages,
-        dates: dateRange,
-        values: valueRange,
-        existing: existing,
-        projected: projected,
-    };
-}
 
 function getUniqueId(name) {
     let count = 0;
@@ -240,104 +198,180 @@ function getUniqueId(name) {
     return id;
 }
 
-function createChart(input) {
-    const height = 300;
-    const width = 600;
-    const margin = {top: 20, right: 20, bottom: 30, left: 30};
 
-    const data = collect(input);
+class InventoryChart {
+    constructor(container, data, height, width) {
+        this.container = (container instanceof HTMLElement)
+            ? container : document.getElementById(container);
+        this.font = window.getComputedStyle(this.container).fontFamily;
 
-    // x- and y-axis scaling
-    const x0 = d3.scaleUtc()
-        .domain(data.dates)
-        .range([margin.left, width - margin.right]);
-    const y0 = d3.scaleLinear()
-        .domain(data.values)
-        .range([height - margin.bottom, margin.top])
-        .nice();
+        this.height = height || 300;
+        this.width = width || 600;
+        this.margin = {top: 20, right: 20, bottom: 30, left: 30};
 
-    // x- and y-axis definitions
-    const xAxis = (g, x) => g
-        .attr("transform", `translate(0, ${height - margin.bottom})`)
-        .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
-    const yAxis = (g, y) => g
-        .attr("transform", `translate(${margin.left}, 0)`)
-        .call(d3.axisLeft(y).ticks(2))
-        .call(g => g.select(".domain").remove())
-
-    // path generation
-    const line = (d, x) => d3.line()
-        // .curve(d3.curveStepAfter)
-        .defined(d => !isNaN(d.value))
-        .x(d => x(d.date))
-        .y(d => y0(d.value))(d);
-
-    // base svg container
-    const svg = d3.create("svg")
-        .attr("viewBox", [0, 0, width, height]);
-
-    // clip path to contain all paths within axes
-    const clipId = getUniqueId("clip");
-    svg.append("clipPath")
-        .attr("id", clipId)
-        .append("rect")
-        .attr("x", margin.left)
-        .attr("y", margin.top)
-        .attr("width", width - margin.left - margin.right)
-        .attr("height", height - margin.top - margin.bottom);
-
-    // append axes to svg container
-    const gx = svg.append("g").call(xAxis, x0);
-    svg.append("g").call(yAxis, y0);
-
-    // append all paths from existing data
-    const past = svg.append("g")
-        .attr("fill", "none")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 1.5)
-        .attr("stroke-linejoin", "round")
-        .selectAll("path")
-        .data(data.existing)
-        .join("path")
-        .style("mix-blend-mode", "multiply")
-        .attr("clip-path", "url(#" + clipId + ")")
-        .attr("d", l => line(l, x0));
-
-    // append all paths from projected data
-    const future = svg.append("g")
-        .attr("fill", "none")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 1.5)
-        .attr("stroke-linejoin", "round")
-        .attr("stroke-dasharray", "4 2")
-        .selectAll("path")
-        .data(data.projected)
-        .join("path")
-        .style("mix-blend-mode", "multiply")
-        .attr("clip-path", "url(#" + clipId + ")")
-        .attr("d", l => line(l, x0));
-
-    // event handler for zoom and drag
-    // scale axis and apply newly scaled data to current paths
-    function zoomed() {
-        const xz = d3.event.transform.rescaleX(x0);
-        past.data(data.existing).call(p => p.attr("d", l => line(l, xz)));
-        future.data(data.projected).call(p => p.attr("d", l => line(l, xz)));
-        gx.call(xAxis, xz);
+        this._collectData(data);
+        if (!this.items) {
+            return;
+        }
+        this._setUpAxes();
+        this._setUpChart();
+        this._setUpZoom();
     }
 
-    // set up zoom functionality
-    const zoom = d3.zoom()
-        .scaleExtent([1, 32])
-        .extent([[margin.left, 0], [width - margin.right, height]])
-        .translateExtent([[margin.left, -Infinity], [width - margin.right, Infinity]])
-        .on("zoom", zoomed);
+    _collectData(data) {
+        // filter out all items with less than two data points
+        const filtered = data.filter(i => i.records.length >= 2);
+        if (!filtered.length) {
+            return;
+        }
 
-    // initial zoom
-    svg.call(zoom)
-        .transition()
-        .duration(750)
-        .call(zoom.scaleTo, 4, [x0(data.dates[1]), 0]);
+        this.items = filtered.map(i => i.name);
+        this.averages = filtered.map(g => parseFloat(g.avg) || null);
+        // collect all existing data points
+        this.existing = filtered.map(g => {
+            return g.records.map(r => ({date: Date.parse(r.a), value: parseFloat(r.q)}))
+        });
+        this.dates = d3.extent(this.existing.flatMap(g => g.map(r => r.date)));
+        // pad the vertical axis
+        this.values = [0, d3.max(this.existing.flatMap(g => g.map(r => r.value))) * 1.1];
 
-    return svg;
+        // set end of data to 1 week ahead of latest data
+        const dateEnd = this.dates[1] + WEEK;
+        // project predicted inventory as straight line based on average daily use
+        this.projected = this.existing.map((group, i) => {
+            // average per millisecond
+            const average = this.averages[i] / DAY;
+            // latest date and value for this item
+            const last = group[group.length - 1];
+            let predicted;
+            if (average) {
+                // find new date when inventory is predicted to hit zero
+                const newDate = last.date + last.value / average;
+                if (newDate <= dateEnd) {
+                    // end date is before 1 week, so go ahead
+                    predicted = {date: newDate, value: 0};
+                } else {
+                    // find value at 1 week ahead and use that
+                    const endValue = last.value - average * (dateEnd - last.date);
+                    predicted =  {date: dateEnd, value: endValue};
+                }
+            } else {
+                predicted = {date: dateEnd, value: last.value};
+            }
+            return [last, predicted];
+        });
+    }
+
+    _setUpAxes() {
+        // x- and y-axis scaling
+        this.xScale = d3.scaleUtc()
+            .domain(this.dates)
+            .range([this.margin.left, this.width - this.margin.right]);
+        this.yScale = d3.scaleLinear()
+            .domain(this.values)
+            .range([this.height - this.margin.bottom, this.margin.top])
+            .nice();
+        // x-axis scaling with zoom
+        this.xZoom = this.xScale;
+
+        // x- and y-axis definitions
+        this.xAxis = (g, x) => g
+            .attr("transform", `translate(0, ${this.height - this.margin.bottom})`)
+            .call(d3.axisBottom(x).ticks(this.width / 80).tickSizeOuter(0));
+        this.yAxis = (g, y) => g
+            .attr("transform", `translate(${this.margin.left}, 0)`)
+            .call(d3.axisLeft(y).ticks(2))
+            .call(g => g.select(".domain").remove());
+
+        // path generation
+        this.line = (data, x) => d3.line()
+            // .curve(d3.curveStepAfter)
+            .defined(d => !isNaN(d.value))
+            .x(d => (x || this.xScale)(d.date))
+            .y(d => this.yScale(d.value))(data);
+    }
+
+    _setUpChart() {
+        // base svg container, append to container
+        this.svg = d3.create("svg").attr("viewBox", [0, 0, this.width, this.height]);
+        this.container.appendChild(this.svg.node());
+
+        // clip path to contain all paths within axes
+        this.clipId = getUniqueId("clip");
+        this.svg.append("clipPath")
+            .attr("id", this.clipId)
+            .append("rect")
+            .attr("x", this.margin.left)
+            .attr("y", this.margin.top)
+            .attr("width", this.width - this.margin.left - this.margin.right)
+            .attr("height", this.height - this.margin.top - this.margin.bottom);
+
+        // append axes to svg container
+        this.gx = this.svg
+            .append("g")
+            .call(this.xAxis, this.xScale)
+            .attr("font-family", this.font);
+        this.gy = this.svg
+            .append("g")
+            .call(this.yAxis, this.yScale)
+            .attr("font-family", this.font);
+
+        this.pastLines = this.svg
+            .append("g")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 1.5)
+            .attr("stroke-linejoin", "round")
+            .selectAll("path")
+            .data(this.existing)
+            .join("path")
+            .style("mix-blend-mode", "multiply")
+            .attr("clip-path", "url(#" + this.clipId + ")")
+            .attr("d", l => this.line(l, this.xScale));
+
+        // append all paths from projected data
+        this.futureLines = this.svg
+            .append("g")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 1.5)
+            .attr("stroke-linejoin", "round")
+            .attr("stroke-dasharray", "4 2")
+            .selectAll("path")
+            .data(this.projected)
+            .join("path")
+            .style("mix-blend-mode", "multiply")
+            .attr("clip-path", "url(#" + this.clipId + ")")
+            .attr("d", l => this.line(l, this.xScale));
+    }
+
+    _setUpZoom() {
+        // set up zoom functionality
+        this.zoom = d3.zoom()
+            .scaleExtent([1, 32])
+            .extent([[this.margin.left, 0], [this.width - this.margin.right, this.height]])
+            .translateExtent([
+                [this.margin.left, -Infinity], [this.width - this.margin.right, Infinity]
+            ])
+            .on("zoom", this._zoomed);
+
+        // zoom out to show everything at first
+        this.svg
+            .call(this.zoom)
+            .transition()
+            .duration(750)
+            .call(this.zoom.scaleTo, 0);
+    }
+
+    // event handler for zoom and drag - scale axis and apply newly scaled data to current paths
+    _zoomed = () => {
+        this.xZoom = d3.event.transform.rescaleX(this.xScale);
+        this.pastLines.data(this.existing).call(p => p.attr("d", l => this.line(l, this.xZoom)));
+        this.futureLines.data(this.projected).call(p => p.attr("d", l => this.line(l, this.xZoom)));
+        this.gx.call(this.xAxis, this.xZoom);
+    }
+
+    node() {
+        return this.svg.node()
+    }
 }
