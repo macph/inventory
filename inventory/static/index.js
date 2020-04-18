@@ -181,8 +181,12 @@ class OrderedTable {
 // https://observablehq.com/@d3/line-chart
 // https://observablehq.com/@d3/multi-line-chart
 // https://observablehq.com/@d3/zoomable-area-chart
+// https://observablehq.com/@d3/focus-context
 
 // TODO: Initial range covering last and next 7 days?
+//   Take a look at focus + context
+//   Show 7 days at start
+//   Should set it up so that the brush only appears when the total data is longer than eg 7 days
 
 const DAY = 1000 * 60 * 60 * 24;
 const WEEK = DAY * 7;
@@ -196,6 +200,16 @@ function getUniqueId(name) {
         id = name + '-' + count;
     }
     return id;
+}
+
+
+function roundDecimal(number, places) {
+    const dp = places || 0;
+    if (dp) {
+        return number.toFixed(dp).replace(/0+$/, "").replace(/\.$/, "");
+    } else {
+        return Math.round(number)
+    }
 }
 
 
@@ -216,6 +230,7 @@ class InventoryChart {
         this._setUpAxes();
         this._setUpChart();
         this._setUpZoom();
+        this._setUpHover();
     }
 
     _collectData(data) {
@@ -371,7 +386,113 @@ class InventoryChart {
         this.gx.call(this.xAxis, this.xZoom);
     }
 
-    node() {
-        return this.svg.node()
+    _setUpHover() {
+        this.hoverDot = this.svg.append("g").attr("display", "none");
+        this.hoverDot.append("circle").attr("r", 2.5);
+        this.hoverDot.append("text")
+            .attr("font-size", 10)
+            .attr("y", -8);
+
+        // apply font style after rendering
+        this.hoverDot.select("text").attr("font-family", this.font);
+
+        if ("ontouchstart" in document) {
+            this.svg
+                .style("-webkit-tap-highlight-color", "transparent")
+                .on("touchmove", this._moveTouch)
+                .on("touchstart", this._enter)
+                .on("touchend", this._leave);
+        } else {
+            this.svg
+                .on("mousemove", this._moveMouse)
+                .on("mouseenter", this._enter)
+                .on("mouseleave", this._leave);
+        }
+    }
+
+    _moveTouch = () => {
+        d3.event.preventDefault();
+        const touch = d3.touch(this.svg.node());
+        if (touch != null) {
+            const [x, y] = touch;
+            this._move(x, y);
+        }
+    }
+
+    _moveMouse = () => {
+        d3.event.preventDefault();
+        const mouse = d3.mouse(this.svg.node());
+        const [x, y] = mouse;
+        this._move(x, y);
+    }
+
+    _move = (x, y) => {
+        // find the nearest set of coordinates
+        let distance, item, closest;
+        let min = Infinity;
+        for (const i of this.existing.keys()) {
+            for (const point of this.existing[i]) {
+                distance = this._squaredDistance(x, y, point);
+                if (distance < min) {
+                    item = i;
+                    closest = point;
+                    min = distance;
+                }
+            }
+            // only need last point on projected line
+            distance = this._squaredDistance(x, y, this.projected[i][1]);
+            if (distance < min) {
+                item = i;
+                closest = this.projected[i][1];
+                min = distance;
+            }
+        }
+        if (item == null) {
+            return;
+        }
+
+        const closestX = this.xZoom(closest.date);
+        const closestY = this.yScale(closest.value);
+        // Set text anchor for dot based on position relative to svg canvas
+        const textAnchor = (closestX < this.width / 3)
+            ? "start" : (closestX >= this.width * 2 / 3) ? "end" : "middle";
+
+        this.hoverDot.attr("transform", `translate(${closestX},${closestY})`);
+        this.hoverDot
+            .select("text")
+            .attr("text-anchor", textAnchor)
+            .text(`${this.items[item]}: ${roundDecimal(closest.value, 3)}`);
+
+        if (this.items.length > 1) {
+            this.pastLines
+                .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
+                .filter((_, i) => i === item)
+                .raise();
+            this.futureLines
+                .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
+                .filter((_, i) => i === item)
+                .raise();
+        }
+    }
+
+    _squaredDistance(x, y, point) {
+        return Math.pow(x - this.xZoom(point.date), 2)
+            + Math.pow(y - this.yScale(point.value), 2);
+    }
+
+    _enter = () => {
+        this.hoverDot.attr("display", null);
+        if (this.items.length > 1) {
+            this.pastLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
+            this.futureLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
+        }
+    }
+
+    _leave = () => {
+        this.hoverDot.attr("display", "none");
+        if (this.items.length > 1) {
+            this.pastLines.style("mix-blend-mode", "multiply").attr("stroke", null);
+            this.futureLines.style("mix-blend-mode", "multiply").attr("stroke", null);
+        }
     }
 }
