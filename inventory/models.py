@@ -10,6 +10,7 @@ from django.db.models import (
     CheckConstraint,
     DateTimeField,
     DecimalField,
+    F,
     ForeignKey,
     IntegerChoices,
     IntegerField,
@@ -17,9 +18,11 @@ from django.db.models import (
     Prefetch,
     Q,
     TextField,
+    Window,
     CASCADE,
     PROTECT,
 )
+from django.db.models.functions import Coalesce, Lag, Lead
 from django.contrib.postgres.fields import CITextField
 from django.urls import reverse
 from django.utils.text import slugify
@@ -115,13 +118,24 @@ class Item(Model):
         return str(self.name)
 
     @classmethod
-    def with_records(cls, asc=False):
-        order = "added" if asc else "-added"
-        ordered = Prefetch("records", Record.objects.order_by(order))
+    def with_records(cls, delta=False, asc=False):
+        order = F("added").asc() if asc else F("added").desc()
+        records = Record.objects.order_by(order)
+        if delta:
+            # add quantity delta between this and previous record
+            # use lag or lead depending on order being used here
+            adjacent = Window(
+                expression=(Lag if asc else Lead)("quantity"),
+                partition_by=F("item_id"),
+                order_by=order,
+            )
+            expression = F("quantity") - Coalesce(adjacent, 0)
+            records = records.annotate(delta=expression)
+
         return (
             cls.objects.order_by("name")
             .select_related("unit")
-            .prefetch_related(ordered)
+            .prefetch_related(Prefetch("records", records))
         )
 
     @classmethod
@@ -180,6 +194,12 @@ class Record(Model):
         # truncate to 3 digits first
         # we use % formatting here as %g will truncate trailing zeros - {:g} won't
         return "%.*g" % (MAX_DIGITS, round(self.convert_quantity(), DP_QUANTITY))
+
+    def format_delta(self):
+        # same as above except pad with plus sign
+        fmt = "%+.*g" % (MAX_DIGITS, round(getattr(self, "delta"), DP_QUANTITY))
+        # replace dash with real minus sign
+        return fmt.replace("-", "−")
 
     def print_quantity(self):
         quantity = self.convert_quantity()

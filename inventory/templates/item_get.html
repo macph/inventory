@@ -26,6 +26,7 @@
         {% else %}
         <th data-column-type="float">Quantity</th>
         {% endif %}
+        <th data-column-type="float">Delta</th>
         {% endwith %}
       </tr>
     </thead>
@@ -34,6 +35,7 @@
       <tr>
         <td data-column-key="{% timestamp r.added %}">{% time_since r.added %}</td>
         <td data-column-key="{{ r.quantity }}"><strong>{{ r.format_quantity }}</strong></td>
+        <td data-column-key="{{ r.delta }}">{{ r.format_delta }}</td>
       </tr>
       {% endfor %}
     </tbody>

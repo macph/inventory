@@ -76,7 +76,7 @@ class AddItem(View):
 class GetItem(View):
     def get(self, request, ident):
         # leave flexible to allow for manual URL input
-        item = models.Item.with_records().get(ident__iexact=slugify(ident))
+        item = models.Item.with_records(delta=True).get(ident__iexact=slugify(ident))
         if not item:
             return Http404(f"food item {ident!r} not found")
         elif item.ident != ident:
