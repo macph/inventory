@@ -179,6 +179,7 @@ class OrderedTable {
 
 const DAY = 1000 * 60 * 60 * 24;
 const WEEK = DAY * 7;
+const NEUTRAL = "#ddd";
 
 
 function getUniqueId(name) {
@@ -218,6 +219,7 @@ class InventoryChart {
         this.focusHeight = this.chartHeight / 4;
         this.width = width || 600;
         this.margin = {top: 20, right: 20, bottom: 30, left: 30};
+        this.colours = d3.schemeTableau10.map(d3.color);
 
         this._collectData(data);
         if (!this.items) {
@@ -227,6 +229,10 @@ class InventoryChart {
         this._setUpChart();
         this._setUpFocus();
         this._setUpHover();
+    }
+
+    _colour(index) {
+        return this.colours[index % this.colours.length];
     }
 
     _collectData(data) {
@@ -394,7 +400,6 @@ class InventoryChart {
         return svg
             .append("g")
             .attr("fill", "none")
-            .attr("stroke", "steelblue")
             .attr("stroke-width", 1.5)
             .attr("stroke-linejoin", "round")
             .selectAll("path")
@@ -402,6 +407,7 @@ class InventoryChart {
             .join("path")
             .style("mix-blend-mode", "multiply")
             .attr("clip-path", "url(#" + this.clipId + ")")
+            .attr("stroke", (_, i) => this._colour(i))
             .attr("d", l => this.line(l, xs, ys));
     }
 
@@ -409,7 +415,6 @@ class InventoryChart {
         return svg
             .append("g")
             .attr("fill", "none")
-            .attr("stroke", "steelblue")
             .attr("stroke-width", 1.5)
             .attr("stroke-linejoin", "round")
             .attr("stroke-dasharray", "4 2")
@@ -418,6 +423,7 @@ class InventoryChart {
             .join("path")
             .style("mix-blend-mode", "multiply")
             .attr("clip-path", "url(#" + this.clipId + ")")
+            .attr("stroke", (_, i) => this._colour(i))
             .attr("d", l => this.line(l, xs, ys));
     }
 
@@ -500,11 +506,11 @@ class InventoryChart {
 
         if (this.items.length > 1) {
             this.chartPastLines
-                .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
+                .attr("stroke", (_, i) => (i === item) ? this._colour(i) : NEUTRAL)
                 .filter((_, i) => i === item)
                 .raise();
             this.chartFutureLines
-                .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
+                .attr("stroke", (_, i) => (i === item) ? this._colour(i) : NEUTRAL)
                 .filter((_, i) => i === item)
                 .raise();
         }
@@ -518,16 +524,20 @@ class InventoryChart {
     _enter = () => {
         this.hoverDot.attr("display", null);
         if (this.items.length > 1) {
-            this.chartPastLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
-            this.chartFutureLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
+            this.chartPastLines.style("mix-blend-mode", null).attr("stroke", () => NEUTRAL);
+            this.chartFutureLines.style("mix-blend-mode", null).attr("stroke", () => NEUTRAL);
         }
     }
 
     _leave = () => {
         this.hoverDot.attr("display", "none");
         if (this.items.length > 1) {
-            this.chartPastLines.style("mix-blend-mode", "multiply").attr("stroke", null);
-            this.chartFutureLines.style("mix-blend-mode", "multiply").attr("stroke", null);
+            this.chartPastLines
+                .style("mix-blend-mode", "multiply")
+                .attr("stroke", (_, i) => this._colour(i));
+            this.chartFutureLines
+                .style("mix-blend-mode", "multiply")
+                .attr("stroke", (_, i) => this._colour(i));
         }
     }
 }
