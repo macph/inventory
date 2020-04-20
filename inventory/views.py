@@ -23,9 +23,9 @@ from .operations import find_average_use
 
 def serialize_records(item=None):
     items = models.Item.with_records(asc=True)
-    find_average_use(items)
     if item is not None:
         items = items.filter(id=item.id)
+    find_average_use(items)
 
     array = []
     for i in items:
@@ -38,14 +38,15 @@ def serialize_records(item=None):
         }
         array.append(d_item)
 
-    return array
+    return dumps(array, cls=DjangoJSONEncoder)
 
 
 def index(request):
     items = models.Item.with_latest_record()
     find_average_use(items)
-    data = dumps(serialize_records(), cls=DjangoJSONEncoder)
-    return render(request, "index.html", {"list_items": items, "data": data})
+    return render(
+        request, "index.html", {"list_items": items, "data": serialize_records()}
+    )
 
 
 class AddItem(View):
@@ -89,7 +90,12 @@ class GetItem(View):
         return render(
             request,
             "item_get.html",
-            {"item": item, "edit_item": edit_item, "add_record": add_record},
+            {
+                "item": item,
+                "edit_item": edit_item,
+                "add_record": add_record,
+                "data": serialize_records(item),
+            },
         )
 
     def post(self, request, ident):
