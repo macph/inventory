@@ -177,17 +177,6 @@ class OrderedTable {
 }
 
 
-// chart based on:
-// https://observablehq.com/@d3/line-chart
-// https://observablehq.com/@d3/multi-line-chart
-// https://observablehq.com/@d3/zoomable-area-chart
-// https://observablehq.com/@d3/focus-context
-
-// TODO: Initial range covering last and next 7 days?
-//   Take a look at focus + context
-//   Show 7 days at start
-//   Should set it up so that the brush only appears when the total data is longer than eg 7 days
-
 const DAY = 1000 * 60 * 60 * 24;
 const WEEK = DAY * 7;
 
@@ -213,13 +202,20 @@ function roundDecimal(number, places) {
 }
 
 
+// chart based on:
+// https://observablehq.com/@d3/line-chart
+// https://observablehq.com/@d3/multi-line-chart
+// https://observablehq.com/@d3/zoomable-area-chart
+// https://observablehq.com/@d3/focus-context
+
 class InventoryChart {
     constructor(container, data, height, width) {
         this.container = (container instanceof HTMLElement)
             ? container : document.getElementById(container);
         this.font = window.getComputedStyle(this.container).fontFamily;
 
-        this.height = height || 300;
+        this.chartHeight = height || 400;
+        this.focusHeight = this.chartHeight / 4;
         this.width = width || 600;
         this.margin = {top: 20, right: 20, bottom: 30, left: 30};
 
@@ -229,7 +225,7 @@ class InventoryChart {
         }
         this._setUpAxes();
         this._setUpChart();
-        this._setUpZoom();
+        this._setUpFocus();
         this._setUpHover();
     }
 
@@ -247,11 +243,12 @@ class InventoryChart {
             return g.records.map(r => ({date: Date.parse(r.a), value: parseFloat(r.q)}))
         });
         this.dates = d3.extent(this.existing.flatMap(g => g.map(r => r.date)));
+        this.latest = this.dates[1];
+        // set end of data to now or 1 week ahead of the latest record, whichever is earlier
+        const dateEnd = this.dates[1] = d3.max([new Date(), this.dates[1] + WEEK]);
         // pad the vertical axis
-        this.values = [0, d3.max(this.existing.flatMap(g => g.map(r => r.value))) * 1.1];
+        this.values = [0, d3.max(this.existing.flatMap(g => g.map(r => r.value))) * 1.05];
 
-        // set end of data to 1 week ahead of latest data
-        const dateEnd = this.dates[1] + WEEK;
         // project predicted inventory as straight line based on average daily use
         this.projected = this.existing.map((group, i) => {
             // average per millisecond
@@ -278,60 +275,123 @@ class InventoryChart {
     }
 
     _setUpAxes() {
-        // x- and y-axis scaling
+        // base scales for x and y axes
         this.xScale = d3.scaleUtc()
             .domain(this.dates)
             .range([this.margin.left, this.width - this.margin.right]);
         this.yScale = d3.scaleLinear()
             .domain(this.values)
-            .range([this.height - this.margin.bottom, this.margin.top])
+            .range([this.chartHeight - this.margin.bottom, this.margin.top])
             .nice();
         // x-axis scaling with zoom
         this.xZoom = this.xScale;
 
-        // x- and y-axis definitions
-        this.xAxis = (g, x) => g
-            .attr("transform", `translate(0, ${this.height - this.margin.bottom})`)
+        // definitions for x and y axes; height argument for setting axis on multiple charts
+        this.xAxis = (g, x, height) => g
+            .attr("transform", `translate(0, ${height - this.margin.bottom})`)
             .call(d3.axisBottom(x).ticks(this.width / 80).tickSizeOuter(0));
         this.yAxis = (g, y) => g
             .attr("transform", `translate(${this.margin.left}, 0)`)
             .call(d3.axisLeft(y).ticks(2))
             .call(g => g.select(".domain").remove());
 
-        // path generation
-        this.line = (data, x) => d3.line()
-            // .curve(d3.curveStepAfter)
+        // function for path generation using scales
+        this.line = (data, xs, ys) => d3.line()
             .defined(d => !isNaN(d.value))
-            .x(d => (x || this.xScale)(d.date))
-            .y(d => this.yScale(d.value))(data);
+            .x(d => (xs || this.xScale)(d.date))
+            .y(d => (ys || this.yScale)(d.value))(data);
     }
 
     _setUpChart() {
         // base svg container, append to container
-        this.svg = d3.create("svg").attr("viewBox", [0, 0, this.width, this.height]);
-        this.container.appendChild(this.svg.node());
+        this.chart = d3.create("svg").attr("viewBox", [0, 0, this.width, this.chartHeight]);
+        this.container.appendChild(this.chart.node());
 
         // clip path to contain all paths within axes
         this.clipId = getUniqueId("clip");
-        this.svg.append("clipPath")
+        this.chart.append("clipPath")
             .attr("id", this.clipId)
             .append("rect")
             .attr("x", this.margin.left)
             .attr("y", this.margin.top)
             .attr("width", this.width - this.margin.left - this.margin.right)
-            .attr("height", this.height - this.margin.top - this.margin.bottom);
+            .attr("height", this.chartHeight - this.margin.top - this.margin.bottom);
 
-        // append axes to svg container
-        this.gx = this.svg
+        // append axes to chart
+        this.chartX = this.chart
             .append("g")
-            .call(this.xAxis, this.xScale)
+            .call(this.xAxis, this.xScale, this.chartHeight)
             .attr("font-family", this.font);
-        this.gy = this.svg
+        this.chartY = this.chart
             .append("g")
             .call(this.yAxis, this.yScale)
             .attr("font-family", this.font);
 
-        this.pastLines = this.svg
+        // append lines to chart
+        this.chartPastLines = this._addPastLines(this.chart);
+        this.chartFutureLines = this._addFutureLines(this.chart);
+    }
+
+    _setUpFocus() {
+        // default 4 days behind, 3 days ahead
+        this.defaultSelection = [
+            this.xScale(d3.max([this.dates[0], d3.utcDay.offset(this.latest, -4)])),
+            this.xScale(d3.min([this.dates[1], d3.utcDay.offset(this.latest, 3)])),
+        ];
+
+        this.focus = d3.create("svg").attr("viewBox", [0, 0, this.width, this.focusHeight]);
+        this.container.appendChild(this.focus.node());
+
+        this.brush = d3.brushX()
+            .extent([
+                [this.margin.left, 0.5],
+                [this.width - this.margin.right, this.focusHeight - this.margin.bottom + 0.5]
+            ])
+            .on("brush", this._brushed)
+            .on("end", this._brushEnd);
+
+        // smaller height to set axis correctly
+        this.focus
+            .append("g")
+            .call(this.xAxis, this.xScale, this.focusHeight)
+            .attr("font-family", this.font);
+
+        // smaller scale for brush chart
+        const scaledY = this.yScale
+            .copy()
+            .range([this.focusHeight - this.margin.bottom, this.margin.top]);
+        this._addPastLines(this.focus, null, scaledY);
+        this._addFutureLines(this.focus, null, scaledY);
+
+        this.gb = this.focus
+            .append("g")
+            .call(this.brush)
+            .call(this.brush.move, this.defaultSelection);
+    }
+
+    _brushed = () => {
+        if (d3.event.selection) {
+            // set scale and range corresponding to brush
+            this.xZoom = this.xScale.copy().domain(d3.event.selection.map(this.xScale.invert));
+            this.chartX.call(this.xAxis, this.xZoom, this.chartHeight);
+            this.chartPastLines
+                .data(this.existing)
+                .call(p => p.attr("d", l => this.line(l, this.xZoom)));
+            this.chartFutureLines
+                .data(this.projected)
+                .call(p => p.attr("d", l => this.line(l, this.xZoom)));
+        }
+    }
+
+    _brushEnd = () => {
+        if (!d3.event.selection) {
+            // reset brush in case brush input fails
+            this.gb.call(this.brush.move, this.defaultSelection);
+        }
+    }
+
+    _addPastLines(svg, xs, ys) {
+        return svg
             .append("g")
             .attr("fill", "none")
             .attr("stroke", "steelblue")
@@ -342,10 +402,11 @@ class InventoryChart {
             .join("path")
             .style("mix-blend-mode", "multiply")
             .attr("clip-path", "url(#" + this.clipId + ")")
-            .attr("d", l => this.line(l, this.xScale));
+            .attr("d", l => this.line(l, xs, ys));
+    }
 
-        // append all paths from projected data
-        this.futureLines = this.svg
+    _addFutureLines(svg, xs, ys) {
+        return svg
             .append("g")
             .attr("fill", "none")
             .attr("stroke", "steelblue")
@@ -357,37 +418,11 @@ class InventoryChart {
             .join("path")
             .style("mix-blend-mode", "multiply")
             .attr("clip-path", "url(#" + this.clipId + ")")
-            .attr("d", l => this.line(l, this.xScale));
-    }
-
-    _setUpZoom() {
-        // set up zoom functionality
-        this.zoom = d3.zoom()
-            .scaleExtent([1, 32])
-            .extent([[this.margin.left, 0], [this.width - this.margin.right, this.height]])
-            .translateExtent([
-                [this.margin.left, -Infinity], [this.width - this.margin.right, Infinity]
-            ])
-            .on("zoom", this._zoomed);
-
-        // zoom out to show everything at first
-        this.svg
-            .call(this.zoom)
-            .transition()
-            .duration(750)
-            .call(this.zoom.scaleTo, 0);
-    }
-
-    // event handler for zoom and drag - scale axis and apply newly scaled data to current paths
-    _zoomed = () => {
-        this.xZoom = d3.event.transform.rescaleX(this.xScale);
-        this.pastLines.data(this.existing).call(p => p.attr("d", l => this.line(l, this.xZoom)));
-        this.futureLines.data(this.projected).call(p => p.attr("d", l => this.line(l, this.xZoom)));
-        this.gx.call(this.xAxis, this.xZoom);
+            .attr("d", l => this.line(l, xs, ys));
     }
 
     _setUpHover() {
-        this.hoverDot = this.svg.append("g").attr("display", "none");
+        this.hoverDot = this.chart.append("g").attr("display", "none");
         this.hoverDot.append("circle").attr("r", 2.5);
         this.hoverDot.append("text")
             .attr("font-size", 10)
@@ -397,13 +432,13 @@ class InventoryChart {
         this.hoverDot.select("text").attr("font-family", this.font);
 
         if ("ontouchstart" in document) {
-            this.svg
+            this.chart
                 .style("-webkit-tap-highlight-color", "transparent")
                 .on("touchmove", this._moveTouch)
                 .on("touchstart", this._enter)
                 .on("touchend", this._leave);
         } else {
-            this.svg
+            this.chart
                 .on("mousemove", this._moveMouse)
                 .on("mouseenter", this._enter)
                 .on("mouseleave", this._leave);
@@ -412,7 +447,7 @@ class InventoryChart {
 
     _moveTouch = () => {
         d3.event.preventDefault();
-        const touch = d3.touch(this.svg.node());
+        const touch = d3.touch(this.chart.node());
         if (touch != null) {
             const [x, y] = touch;
             this._move(x, y);
@@ -421,7 +456,7 @@ class InventoryChart {
 
     _moveMouse = () => {
         d3.event.preventDefault();
-        const mouse = d3.mouse(this.svg.node());
+        const mouse = d3.mouse(this.chart.node());
         const [x, y] = mouse;
         this._move(x, y);
     }
@@ -464,11 +499,11 @@ class InventoryChart {
             .text(`${this.items[item]}: ${roundDecimal(closest.value, 3)}`);
 
         if (this.items.length > 1) {
-            this.pastLines
+            this.chartPastLines
                 .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
                 .filter((_, i) => i === item)
                 .raise();
-            this.futureLines
+            this.chartFutureLines
                 .attr("stroke", (_, i) => (i === item) ? null : "#ddd")
                 .filter((_, i) => i === item)
                 .raise();
@@ -483,16 +518,16 @@ class InventoryChart {
     _enter = () => {
         this.hoverDot.attr("display", null);
         if (this.items.length > 1) {
-            this.pastLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
-            this.futureLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
+            this.chartPastLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
+            this.chartFutureLines.style("mix-blend-mode", null).attr("stroke", "#ddd");
         }
     }
 
     _leave = () => {
         this.hoverDot.attr("display", "none");
         if (this.items.length > 1) {
-            this.pastLines.style("mix-blend-mode", "multiply").attr("stroke", null);
-            this.futureLines.style("mix-blend-mode", "multiply").attr("stroke", null);
+            this.chartPastLines.style("mix-blend-mode", "multiply").attr("stroke", null);
+            this.chartFutureLines.style("mix-blend-mode", "multiply").attr("stroke", null);
         }
     }
 }
