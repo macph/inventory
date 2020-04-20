@@ -209,11 +209,16 @@ function roundDecimal(number, places) {
 // https://observablehq.com/@d3/zoomable-area-chart
 // https://observablehq.com/@d3/focus-context
 
+// TODO: Improve experience on mobile
+
+
 class InventoryChart {
-    constructor(container, data, height, width) {
+    constructor(container, data, itemUrl, placeholder, height, width) {
         this.container = (container instanceof HTMLElement)
             ? container : document.getElementById(container);
         this.font = window.getComputedStyle(this.container).fontFamily;
+        this.itemUrl = itemUrl;
+        this.placeholder = placeholder;
 
         this.chartHeight = height || 400;
         this.focusHeight = this.chartHeight / 4;
@@ -235,6 +240,16 @@ class InventoryChart {
         return this.colours[index % this.colours.length];
     }
 
+    _url(attr) {
+        if (this.itemUrl && this.placeholder) {
+            return this.itemUrl.replace(this.placeholder, attr);
+        } else if (this.itemUrl) {
+            return this.itemUrl;
+        } else {
+            return undefined;
+        }
+    }
+
     _collectData(data) {
         // filter out all items with less than two data points
         const filtered = data.filter(i => i.records.length >= 2);
@@ -243,6 +258,7 @@ class InventoryChart {
         }
 
         this.items = filtered.map(i => i.name);
+        this.idents = filtered.map(i => i.ident);
         this.averages = filtered.map(g => parseFloat(g.avg) || null);
         // collect all existing data points
         this.existing = filtered.map(g => {
@@ -430,9 +446,12 @@ class InventoryChart {
     _setUpHover() {
         this.hoverDot = this.chart.append("g").attr("display", "none");
         this.hoverDot.append("circle").attr("r", 2.5);
-        this.hoverDot.append("text")
-            .attr("font-size", 10)
-            .attr("y", -8);
+        if (this.itemUrl) {
+            const anchor = this.hoverDot.append("a");
+            anchor.append("text").attr("font-size", 10).attr("y", -8);
+        } else {
+            this.hoverDot.append("text").attr("font-size", 10).attr("y", -8);
+        }
 
         // apply font style after rendering
         this.hoverDot.select("text").attr("font-family", this.font);
@@ -499,6 +518,11 @@ class InventoryChart {
             ? "start" : (closestX >= this.width * 2 / 3) ? "end" : "middle";
 
         this.hoverDot.attr("transform", `translate(${closestX},${closestY})`);
+        // set URL for hover text, if one is available
+        const url = this._url(this.idents[item]);
+        if (url) {
+            this.hoverDot.select("a").attr("href", url);
+        }
         this.hoverDot
             .select("text")
             .attr("text-anchor", textAnchor)

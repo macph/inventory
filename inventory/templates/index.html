@@ -53,9 +53,11 @@
 </section>
 <script>
 const DATA = JSON.parse('{{ data|safe }}');
+const URL = "{% url 'item_get' 'ITEM' %}"
+const PLACEHOLDER = "ITEM";
 
 window.addEventListener("load", () => {
-    new InventoryChart("chart-container", DATA);
+    new InventoryChart("chart-container", DATA, URL, PLACEHOLDER);
 });
 window.addEventListener("load", () => {
     const table = document.getElementById("table-items");
