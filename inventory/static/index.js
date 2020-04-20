@@ -275,24 +275,25 @@ class InventoryChart {
         this.projected = this.existing.map((group, i) => {
             // average per millisecond
             const average = this.averages[i] / DAY;
-            // latest date and value for this item
-            const last = group[group.length - 1];
-            let predicted;
             if (average) {
+                // latest date and value for this item
+                const last = group[group.length - 1];
                 // find new date when inventory is predicted to hit zero
                 const newDate = last.date + last.value / average;
+                let predicted;
                 if (newDate <= dateEnd) {
                     // end date is before 1 week, so go ahead
                     predicted = {date: newDate, value: 0};
                 } else {
                     // find value at 1 week ahead and use that
                     const endValue = last.value - average * (dateEnd - last.date);
-                    predicted =  {date: dateEnd, value: endValue};
+                    predicted = {date: dateEnd, value: endValue};
                 }
+                return [last, predicted];
             } else {
-                predicted = {date: dateEnd, value: last.value};
+                // don't create projected line if no average exists
+                return [];
             }
-            return [last, predicted];
         });
     }
 
@@ -500,11 +501,13 @@ class InventoryChart {
                 }
             }
             // only need last point on projected line
-            distance = this._squaredDistance(x, y, this.projected[i][1]);
-            if (distance < min) {
-                item = i;
-                closest = this.projected[i][1];
-                min = distance;
+            if (this.projected[i].length) {
+                distance = this._squaredDistance(x, y, this.projected[i][1]);
+                if (distance && distance < min) {
+                    item = i;
+                    closest = this.projected[i][1];
+                    min = distance;
+                }
             }
         }
         if (item == null) {
