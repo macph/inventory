@@ -3,23 +3,19 @@
 {% block title %}add item{% endblock %}
 
 {% block header %}
-<h1>Add food item</h1>
+<h1>add food item</h1>
 {% endblock %}
 
 {% block main %}
-{% if just_added %}
-<section>
+<section class="half">
+  {% if just_added %}
   <p style="color: green;"><strong>{{ just_added|capfirst }}</strong> added.</p>
-</section>
-{% endif %}
-{% if form.errors and form.non_field_errors %}
-<section>
+  {% endif %}
+  {% if form.errors and form.non_field_errors %}
   {% for error in form.non_field_errors %}
-    <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  <p style="color: red"><strong>{{ error|escape }}</strong></p>
   {% endfor %}
-</section>
-{% endif %}
-<section>
+  {% endif %}
   <form action="{% url 'item_add' %}" method="post">
     {% csrf_token %}
     {{ form.name.label_tag }}

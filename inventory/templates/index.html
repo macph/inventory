@@ -7,15 +7,13 @@
 <script src="{% static 'index.js' %}" defer></script>
 {% endblock %}
 
-{% block nav %}{% endblock %}
-
 {% block header %}
 <h1>inventory</h1>
 <p>manage your food stockpile!</p>
 {% endblock %}
 
 {% block main %}
-<section>
+<section class="three-quarters middle">
   {% if list_items %}
   <table id="table-items">
     <thead>
@@ -43,13 +41,11 @@
   <p>Add a food item to start</p>
   {% endif %}
 </section>
-<article id="chart-container">
-</article>
-<section>
-<p>
-  <a href="{% url 'item_add' %}"><em>Add food item</em></a>
-  {% if list_items %}<a href="{% url 'update' %}"><em>Update records</em></a>{% endif %}
-</p>
+<section class="half middle">
+  <a class="button button-outline" href="{% url 'item_add' %}">Add food item</a>
+  {% if list_items %}<a class="button button-outline" href="{% url 'update' %}">Update records</a>{% endif %}
+</section>
+<section id="chart-container">
 </section>
 <script>
 const DATA = JSON.parse('{{ data|safe }}');

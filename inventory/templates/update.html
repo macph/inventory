@@ -7,15 +7,13 @@
 {% endblock %}
 
 {% block main %}
-{% if update.errors and update.non_field_errors %}
-<section>
-  {% for error in update.non_field_errors %}
-    <p style="color: red"><strong>{{ error|escape }}</strong></p>
-  {% endfor %}
-</section>
-{% endif %}
 {% if update.items %}
-<section>
+<section class="three-quarters">
+  {% if update.errors and update.non_field_errors %}
+  {% for error in update.non_field_errors %}
+  <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+  {% endif %}
   <form action="{% url 'update' %}" method="post">
     {% csrf_token %}
     <table>
@@ -41,15 +39,14 @@
         {% endfor %}
       </tbody>
     </table>
-    <hr>
     <label for="update-note">Note:</label>
     <textarea id="update-note" name="note"></textarea>
     <button type="submit">Update</button>
-    <a href="{% url 'index' %}"><em>Back</em></a>
+    <a class="button button-outline" href="{% url 'index' %}">Back</a>
   </form>
 </section>
 {% else %}
-<section>
+<section class="three-quarters middle">
   <p>No items found</p>
 </section>
 {% endif %}

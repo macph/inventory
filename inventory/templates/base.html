@@ -6,31 +6,19 @@
   <meta name="color-scheme" content="light">
   <meta name="viewport" content="initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'mvp.css' %}">
-  <style>
-    :root {
-      --font: 'Inter', sans-serif;
-    }
-    a em,
-    a i {
-      font-style: normal;
-    }
-    textarea {
-      width: 88%;
-      resize: vertical;
-      min-height: 1.5rem;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'normalize.css' %}">
+  <link rel="stylesheet" href="{% static 'milligram.css' %}">
+  <link rel="stylesheet" href="{% static 'main.css' %}">
   <title>{% block title %}inventory{% endblock %}</title>
   {% block head %}{% endblock %}
 </head>
 <body>
-  <header>
+  <header class="container">
     {% block nav %}
     <nav>
       <a href="{% url 'index' %}">inventory</a>
       <ul>
-        <li><a href="{% url 'item_add' %}">add item</a></li>
+        <li><a href="{% url 'item_add' %}">add food item</a></li>
         <li><a href="{% url 'update' %}">update items</a></li>
       </ul>
     </nav>
@@ -38,12 +26,13 @@
     {% block header %}
     {% endblock %}
   </header>
-  <main>
+  <main class="container">
     {% block main %}
     {% endblock %}
   </main>
-  <footer>
+  <footer class="container">
     {% block footer %}
+    <p>2020, made by Ewan Macpherson ~
     {% endblock %}
   </footer>
 </body>

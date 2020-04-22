@@ -3,15 +3,16 @@
 {% block title %}delete item{% endblock %}
 
 {% block header %}
+<h1>delete item</h1>
 {% endblock %}
 
 {% block main %}
-<section>
+<section class="half">
   <form action="{% url 'item_delete' item.ident %}" method="post">
     {% csrf_token %}
     <p>Delete <strong>{{ item.name }}</strong>?</p>
     <button type="submit" name="delete" value="1">Delete</button>
-    <a href="{% url 'item_get' item.ident %}"><em>Cancel</em></a>
+    <a class="button button-outline" href="{% url 'item_get' item.ident %}">Cancel</a>
   </form>
 </section>
 {% endblock %}

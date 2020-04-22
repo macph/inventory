@@ -1,0 +1,52 @@
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+header {
+  text-align: center;
+}
+
+/* navigation based on mvp.css */
+
+nav {
+  align-items: center;
+  display: flex;
+  font-weight: bold;
+  justify-content: space-between;
+  margin-bottom: 7rem;
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+}
+
+nav ul li {
+  display: inline-block;
+  margin: 0 0.5rem;
+  position: relative;
+  text-align: left;
+}
+
+.container:not(:first-child) {
+  margin-top: 10rem;
+}
+
+.row .column:not(:first-child) {
+  margin-left: 1rem;
+}
+
+.middle {
+  text-align: center;
+}
+
+.three-quarters {
+  margin: 0 auto;
+  max-width: 84.0rem;
+}
+
+.half {
+  margin: 0 auto;
+  max-width: 56.0rem;
+}
