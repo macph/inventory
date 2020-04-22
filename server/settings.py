@@ -11,20 +11,25 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 import os
 
+from environ import Env
+
+
+env = Env(DEBUG=(bool, False), LOG_LEVEL=(str, "WARNING"), HOSTS=(list, []),)
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "$2-@j4k!pmj@c2ce+5#^+(sv5+ulu5v316&&58u2)u2923h%@#"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env("HOSTS")
 
 
 # Application definition
@@ -79,7 +84,7 @@ LOGGING = {
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "level": env("LOG_LEVEL"),
             "propagate": False,
         },
     },
@@ -90,7 +95,7 @@ LOGGING = {
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {"ENGINE": "django.db.backends.postgresql", "NAME": "inventory",}
+    "default": env.db(),
 }
 
 

@@ -8,9 +8,9 @@ authors = ["macph <macph@users.noreply.github.com>"]
 python = "^3.8"
 django = "^3.0.5"
 psycopg2 = "^2.8.5"
+django-environ = "^0.4.5"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
 black = "^19.10b0"
 
 [build-system]
