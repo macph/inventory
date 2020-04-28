@@ -11,7 +11,7 @@
 <section class="three-quarters">
   {% if update.errors and update.non_field_errors %}
   {% for error in update.non_field_errors %}
-  <p style="color: red"><strong>{{ error|escape }}</strong></p>
+  <p class="invalid"><strong>{{ error|escape }}</strong></p>
   {% endfor %}
   {% endif %}
   <form action="{% url 'update' %}" method="post">
@@ -33,7 +33,7 @@
         </tr>
         {% for error in ui.field.errors %}
         <tr>
-          <td rowspan="3" style="color: red"><strong>{{ error|escape }}</strong></td>
+          <td rowspan="3" class="invalid"><strong>{{ error|escape }}</strong></td>
         </tr>
         {% endfor %}
         {% endfor %}

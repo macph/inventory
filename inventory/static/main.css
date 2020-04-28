@@ -29,6 +29,14 @@ nav ul li {
   text-align: left;
 }
 
+/* restrict horizontal resizing for textarea */
+
+textarea {
+  resize: vertical;
+}
+
+/* adjust the containers a bit */
+
 .container:not(:first-child) {
   margin-top: 10rem;
 }
@@ -49,4 +57,114 @@ nav ul li {
 .half {
   margin: 0 auto;
   max-width: 56.0rem;
+}
+
+/* overwrite colours */
+
+.button,
+button,
+input[type='button'],
+input[type='reset'],
+input[type='submit'] {
+  font-family: 'Inter', sans-serif; /* required on Windows */
+  background-color: #4caf50;
+  border-color: #4caf50;
+}
+
+.button[disabled]:focus, .button[disabled]:hover,
+button[disabled]:focus,
+button[disabled]:hover,
+input[type='button'][disabled]:focus,
+input[type='button'][disabled]:hover,
+input[type='reset'][disabled]:focus,
+input[type='reset'][disabled]:hover,
+input[type='submit'][disabled]:focus,
+input[type='submit'][disabled]:hover {
+  background-color: #4caf50;
+  border-color: #4caf50;
+}
+
+.button.button-outline,
+button.button-outline,
+input[type='button'].button-outline,
+input[type='reset'].button-outline,
+input[type='submit'].button-outline {
+  color: #4caf50;
+}
+
+.button.button-outline[disabled]:focus, .button.button-outline[disabled]:hover,
+button.button-outline[disabled]:focus,
+button.button-outline[disabled]:hover,
+input[type='button'].button-outline[disabled]:focus,
+input[type='button'].button-outline[disabled]:hover,
+input[type='reset'].button-outline[disabled]:focus,
+input[type='reset'].button-outline[disabled]:hover,
+input[type='submit'].button-outline[disabled]:focus,
+input[type='submit'].button-outline[disabled]:hover {
+  color: #4caf50;
+}
+
+.button.button-clear,
+button.button-clear,
+input[type='button'].button-clear,
+input[type='reset'].button-clear,
+input[type='submit'].button-clear {
+  color: #4caf50;
+}
+
+.button.button-clear[disabled]:focus, .button.button-clear[disabled]:hover,
+button.button-clear[disabled]:focus,
+button.button-clear[disabled]:hover,
+input[type='button'].button-clear[disabled]:focus,
+input[type='button'].button-clear[disabled]:hover,
+input[type='reset'].button-clear[disabled]:focus,
+input[type='reset'].button-clear[disabled]:hover,
+input[type='submit'].button-clear[disabled]:focus,
+input[type='submit'].button-clear[disabled]:hover {
+  color: #4caf50;
+}
+
+pre {
+  border-left-color: #4caf50;
+}
+
+input[type='email']:focus,
+input[type='number']:focus,
+input[type='password']:focus,
+input[type='search']:focus,
+input[type='tel']:focus,
+input[type='text']:focus,
+input[type='url']:focus,
+textarea:focus,
+select:focus {
+  border-color: #4caf50;
+}
+
+a {
+  color: #4caf50;
+}
+
+/* validation */
+
+/* :invalid pseudo-class is applied too eagerly, especially on login form
+
+input[type='email']:invalid,
+input[type='number']:invalid,
+input[type='password']:invalid,
+input[type='search']:invalid,
+input[type='tel']:invalid,
+input[type='text']:invalid,
+input[type='url']:invalid,
+textarea:invalid,
+select:invalid {
+  border-color: #f44336;
+}
+ */
+
+.valid {
+  color: #4caf50;
+}
+
+.invalid {
+  color: #f44336;
 }
