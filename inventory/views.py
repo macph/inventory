@@ -2,11 +2,8 @@
 Inventory views
 
 """
-from json import dumps
-
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db.transaction import atomic
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.text import slugify
 from django.views.generic import View
@@ -21,10 +18,21 @@ from .operations import find_average_use
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
 
 
-def serialize_records(item=None):
+def index(request):
+    items = models.Item.with_latest_record()
+    find_average_use(items)
+    return render(request, "index.html", {"list_items": items})
+
+
+def records(request, ident=None):
     items = models.Item.with_records(asc=True)
-    if item is not None:
-        items = items.filter(id=item.id)
+    if ident is not None:
+        items = items.filter(ident=ident).all()
+        if not items:
+            raise Http404(f"food item {ident!r} not found")
+    else:
+        items = items.all()
+
     find_average_use(items)
 
     array = []
@@ -38,15 +46,9 @@ def serialize_records(item=None):
         }
         array.append(d_item)
 
-    return dumps(array, cls=DjangoJSONEncoder)
+    data = {"items": array}
 
-
-def index(request):
-    items = models.Item.with_latest_record()
-    find_average_use(items)
-    return render(
-        request, "index.html", {"list_items": items, "data": serialize_records()}
-    )
+    return JsonResponse(data)
 
 
 class AddItem(View):
@@ -86,16 +88,10 @@ class GetItem(View):
 
         edit_item = forms.EditItemForm(original=item)
         add_record = forms.AddRecordForm(parent_item=item)
-        item.all_records = item.records.all()
         return render(
             request,
             "item_get.html",
-            {
-                "item": item,
-                "edit_item": edit_item,
-                "add_record": add_record,
-                "data": serialize_records(item),
-            },
+            {"item": item, "edit_item": edit_item, "add_record": add_record,},
         )
 
     def post(self, request, ident):
@@ -112,7 +108,6 @@ class GetItem(View):
             return redirect(updated_item)
         else:
             add_record = forms.AddRecordForm(parent_item=item)
-            item.all_records = item.records.all()
             return render(
                 request,
                 "item_get.html",

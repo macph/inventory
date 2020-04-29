@@ -16,7 +16,7 @@
 
 {% block main %}
 <section class="three-quarters middle">
-  {% if item.all_records %}
+  {% if item.records.all %}
   <table id="table-records">
     <thead>
       <tr>
@@ -32,7 +32,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for r in item.all_records %}
+      {% for r in item.records.all %}
       <tr>
         <td data-column-key="{% timestamp r.added %}">{% time_since r.added %}</td>
         <td data-column-key="{{ r.quantity }}"><strong>{{ r.format_quantity }}</strong></td>
@@ -108,9 +108,9 @@
   </section>
 </div>
 <script>
-const DATA = JSON.parse('{{ data|safe }}');
+const SOURCE = "{% url 'item_records' item.ident %}";
 window.addEventListener("load", () => {
-    new InventoryChart("chart-container", DATA);
+    createChart(SOURCE, "chart-container");
 })
 window.addEventListener("load", () => {
     const table = document.getElementById("table-records");

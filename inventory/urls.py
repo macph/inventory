@@ -10,6 +10,8 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("records/", views.records, name="records"),
+    path("records/<str:ident>/", views.records, name="item_records"),
     path("item/", views.AddItem.as_view(), name="item_add"),
     path("item/<str:ident>/", views.GetItem.as_view(), name="item_get"),
     path("item/<str:ident>/delete/", views.DeleteItem.as_view(), name="item_delete"),

@@ -568,3 +568,12 @@ class InventoryChart {
         }
     }
 }
+
+
+function createChart(source, container, itemUrl, placeholder, height, width) {
+    fetch(source)
+        .then(response => response.json())
+        .then(data => {
+            new InventoryChart(container, data.items, itemUrl, placeholder, height, width);
+        });
+}

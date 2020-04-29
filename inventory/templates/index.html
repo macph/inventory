@@ -48,12 +48,12 @@
 <section id="chart-container">
 </section>
 <script>
-const DATA = JSON.parse('{{ data|safe }}');
+const SOURCE = "{% url 'records' %}";
 const URL = "{% url 'item_get' 'ITEM' %}"
 const PLACEHOLDER = "ITEM";
 
 window.addEventListener("load", () => {
-    new InventoryChart("chart-container", DATA, URL, PLACEHOLDER);
+    createChart(SOURCE, "chart-container", URL, PLACEHOLDER);
 });
 window.addEventListener("load", () => {
     const table = document.getElementById("table-items");
