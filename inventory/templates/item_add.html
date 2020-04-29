@@ -11,31 +11,36 @@
   {% if just_added %}
   <p class="valid"><strong>{{ just_added|capfirst }}</strong> added.</p>
   {% endif %}
-  {% if form.errors and form.non_field_errors %}
-  {% for error in form.non_field_errors %}
+  {% if new_item.errors and new_item.non_field_errors %}
+  {% for error in new_item.non_field_errors %}
+  <p class="invalid"><strong>{{ error|escape }}</strong></p>
+  {% endfor %}
+  {% endif %}
+  {% if record.errors and record.non_field_errors %}
+  {% for error in record.non_field_errors %}
   <p class="invalid"><strong>{{ error|escape }}</strong></p>
   {% endfor %}
   {% endif %}
   <form action="{% url 'item_add' %}" method="post">
     {% csrf_token %}
-    {{ form.name.label_tag }}
-    {{ form.name }}
-    {% for error in form.name.errors %}
+    {{ new_item.name.label_tag }}
+    {{ new_item.name }}
+    {% for error in new_item.name.errors %}
     <p class="invalid"><strong>{{ error|escape }}</strong></p>
     {% endfor %}
-    {{ form.unit.label_tag }}
-    {{ form.unit }}
-    {% for error in form.unit.errors %}
+    {{ new_item.unit.label_tag }}
+    {{ new_item.unit }}
+    {% for error in new_item.unit.errors %}
     <p class="invalid"><strong>{{ error|escape }}</strong></p>
     {% endfor %}
-    {{ form.minimum.label_tag }}
-    {{ form.minimum }}
-    {% for error in form.minimum.errors %}
+    {{ new_item.minimum.label_tag }}
+    {{ new_item.minimum }}
+    {% for error in new_item.minimum.errors %}
     <p class="invalid"><strong>{{ error|escape }}</strong></p>
     {% endfor %}
-    {{ form.initial.label_tag }}
-    {{ form.initial }}
-    {% for error in form.initial.errors %}
+    {{ record.quantity.label_tag }}
+    {{ record.quantity }}
+    {% for error in record.quantity.errors %}
     <p class="invalid"><strong>{{ error|escape }}</strong></p>
     {% endfor %}
     <button type="submit">Add</button>

@@ -18,19 +18,36 @@ from django.db.models import (
     Prefetch,
     Q,
     TextField,
+    UniqueConstraint,
     Window,
     CASCADE,
     PROTECT,
 )
 from django.db.models.functions import Coalesce, Lag, Lead
+from django.conf import settings
 from django.contrib.postgres.fields import CITextField
 from django.urls import reverse
 from django.utils.text import slugify
 from django.utils.timezone import now
 
+
 MAX_DIGITS = 12
 DP_CONVERT = 6
 DP_QUANTITY = 3
+
+
+def round_quantity(value):
+    r0, r1 = round(value, DP_QUANTITY), round(value, DP_QUANTITY - 1)
+    return r1 if abs(r1 - r0) <= 10 ** -DP_QUANTITY else r0
+
+
+def format_quantity(value, delta=False):
+    # pad with plus sign if delta
+    fmt = "%+.*g" if delta else "%.*g"
+    # truncate to 3 digits first
+    # we use % formatting here as %g will truncate trailing zeros - {:g} won't
+    # replace dash with real minus sign
+    return (fmt % (MAX_DIGITS, round_quantity(value))).replace("-", "−")
 
 
 class UnitEnum(IntegerChoices):
@@ -89,13 +106,16 @@ class Item(Model):
 
     class Meta:
         constraints = [
+            UniqueConstraint(fields=["user", "name"], name="unique_item_user_name"),
+            UniqueConstraint(fields=["user", "ident"], name="unique_item_user_ident"),
             CheckConstraint(
                 check=Q(minimum__gte=0), name="check_item_minimum_not_negative"
             ),
         ]
 
-    name = CITextField(max_length=256, unique=True)
-    ident = TextField(unique=True)
+    name = CITextField(max_length=256)
+    ident = TextField()
+    user = ForeignKey(settings.AUTH_USER_MODEL, related_name="items", on_delete=CASCADE)
     unit = ForeignKey("Unit", on_delete=PROTECT, default=1)
     minimum = DecimalField(
         max_digits=MAX_DIGITS,
@@ -191,19 +211,14 @@ class Record(Model):
         return self.quantity / self.item.unit.convert
 
     def format_quantity(self):
-        # truncate to 3 digits first
-        # we use % formatting here as %g will truncate trailing zeros - {:g} won't
-        return "%.*g" % (MAX_DIGITS, round(self.convert_quantity(), DP_QUANTITY))
+        return format_quantity(self.convert_quantity())
 
     def format_delta(self):
-        # same as above except pad with plus sign
-        fmt = "%+.*g" % (MAX_DIGITS, round(getattr(self, "delta"), DP_QUANTITY))
-        # replace dash with real minus sign
-        return fmt.replace("-", "−")
+        return format_quantity(getattr(self, "delta"), delta=True)
 
     def print_quantity(self):
         quantity = self.convert_quantity()
-        rounded = round(quantity, DP_QUANTITY)
+        rounded = round_quantity(quantity)
         if self.item.unit.code:
             return "%.*g %s" % (MAX_DIGITS, rounded, self.item.unit.code)
         elif quantity != 1 and self.item.unit.plural:

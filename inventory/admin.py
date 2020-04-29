@@ -37,7 +37,7 @@ class UnitAdmin(ModelAdmin):
 @register(Item)
 class ItemAdmin(ModelAdmin):
     formfield_overrides = {TextField: {"widget": TextInput}}
-    list_display = ("name", "unit", "added")
+    list_display = ("user", "name", "unit", "added")
 
 
 @register(Record)

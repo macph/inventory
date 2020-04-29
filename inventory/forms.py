@@ -19,19 +19,42 @@ from django.forms import (
 from django.utils.text import slugify
 from django.utils.timezone import now
 
-from .models import DP_QUANTITY, Item, MAX_DIGITS, Record, Unit, UnitEnum
+from .models import (
+    format_quantity,
+    Item,
+    Record,
+    Unit,
+    UnitEnum,
+    DP_QUANTITY,
+    MAX_DIGITS,
+)
 
 MIN_DOUBLE_POST = timedelta(minutes=1)
 
 
+class DecimalInput(TextInput):
+    def __init__(self, attrs=None):
+        to_add = {"inputmode": "decimal", "pattern": "^$|([0-9]+.?[0-9]*)|(.[0-9]+)"}
+        new_attrs = attrs.update(to_add) if attrs else to_add
+        super().__init__(new_attrs)
+
+
+class CustomDecimalField(DecimalField):
+    def prepare_value(self, value):
+        if isinstance(value, str) or value is None:
+            return value
+        elif value:
+            return format_quantity(value)
+        else:
+            return ""
+
+
 def decimal_field(**kwargs):
-    return DecimalField(
+    return CustomDecimalField(
         min_value=0,
         max_digits=MAX_DIGITS,
         decimal_places=DP_QUANTITY,
-        widget=TextInput(
-            attrs={"inputmode": "decimal", "pattern": "^$|([0-9]+.?[0-9]*)|(.[0-9]+)"}
-        ),
+        widget=DecimalInput(),
         **kwargs,
     )
 
@@ -74,26 +97,27 @@ class AddItemForm(ModelForm):
         else:
             raise ValidationError("Unit of measurement does not exist")
 
-    def clean_minimum(self):
-        return self.cleaned_data["minimum"] or 0
+    def clean(self):
+        minimum = self.cleaned_data["minimum"] or 0
+        self.cleaned_data["minimum"] = round(
+            minimum * self.cleaned_data["unit"].convert, DP_QUANTITY
+        )
 
-    def save(self, commit=True):
-        with atomic():
-            instance = super().save(commit)
-            initial = self.cleaned_data["initial"]
-            if initial and commit:
-                quantity = round(initial * instance.unit.convert, DP_QUANTITY)
-                new_record = Record(item=instance, quantity=quantity, note="initial")
-                new_record.save()
+        return super().clean()
 
-        return instance
+
+class AddInitialRecord(ModelForm):
+    class Meta:
+        model = Record
+        fields = ("quantity",)
+
+    quantity = decimal_field(required=False, label="Initial")
 
 
 class EditItemForm(ModelForm):
     class Meta:
         model = Item
         fields = ("name", "unit", "minimum")
-        exclude = ("ident",)
 
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
@@ -115,9 +139,16 @@ class EditItemForm(ModelForm):
             self.fields["unit"].queryset = Unit.objects.filter(
                 measure=item.unit.measure
             )
-            self.fields["minimum"].initial = item.minimum
+            self.fields["minimum"].initial = item.minimum / item.unit.convert
         else:
             self.fields["unit"].queryset = Unit.objects.all()
+
+    def clean(self):
+        minimum = self.cleaned_data["minimum"] or 0
+        normalised = minimum * self.cleaned_data["unit"].convert
+        self.cleaned_data["minimum"] = round(normalised, DP_QUANTITY)
+
+        return super().clean()
 
 
 class AddRecordForm(ModelForm):
@@ -133,7 +164,7 @@ class AddRecordForm(ModelForm):
 
         super().__init__(*args, **kwargs)
 
-        self.parent_item = item
+        self._parent_item = item
         self.fields["unit"].initial = item.unit.pk
         self.fields["unit"].queryset = Unit.objects.filter(measure=item.unit.measure)
 
@@ -143,7 +174,7 @@ class AddRecordForm(ModelForm):
         if quantity is None:
             return super().clean()
 
-        if self.parent_item.unit.measure != unit.measure:
+        if self._parent_item.unit.measure != unit.measure:
             raise ValidationError(
                 "Record must have same base unit of measurement as item", code="invalid"
             )
@@ -157,11 +188,11 @@ class AddRecordForm(ModelForm):
         added = now()
         with atomic():
             if (
-                self.parent_item.latest_record
-                and added - self.parent_item.latest_record.added < MIN_DOUBLE_POST
+                self._parent_item.latest_record
+                and added - self._parent_item.latest_record.added < MIN_DOUBLE_POST
             ):
                 # modify latest record
-                instance = self.parent_item.latest_record
+                instance = self._parent_item.latest_record
                 instance.added = added
                 instance.quantity = self.instance.quantity
                 if commit:
@@ -171,10 +202,11 @@ class AddRecordForm(ModelForm):
                 instance = super().save(commit)
 
             unit = self.cleaned_data["unit"]
-            if commit and self.parent_item.unit != unit:
+            if self._parent_item.unit != unit:
                 # Set item preferred unit to latest
-                self.parent_item.unit = unit
-                self.parent_item.save()
+                self._parent_item.unit = unit
+                if commit:
+                    self._parent_item.save()
 
         return instance
 
