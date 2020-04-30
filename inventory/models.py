@@ -3,6 +3,7 @@ Inventory models
 
 """
 from datetime import timedelta
+from decimal import localcontext, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -37,8 +38,12 @@ DP_QUANTITY = 3
 
 
 def round_quantity(value):
-    r0, r1 = round(value, DP_QUANTITY), round(value, DP_QUANTITY - 1)
-    return r1 if abs(r1 - r0) <= 10 ** -DP_QUANTITY else r0
+    if not value.is_finite():
+        raise ValueError(f"{value!r} not a finite number")
+    with localcontext() as ctx:
+        ctx.rounding = ROUND_HALF_UP
+        r0, r1 = round(value, DP_QUANTITY), round(value, DP_QUANTITY - 1)
+        return r1 if abs(r1 - r0) <= 10 ** -DP_QUANTITY else r0
 
 
 def format_quantity(value, delta=False):

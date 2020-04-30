@@ -17,6 +17,9 @@ from .operations import find_average_use
 # TODO: Functionality to add extra items in an update form
 # TODO: Convert between wider range of units, possibly with some sort of conversion
 # TODO: Add multiple non-formal units such as 330 ml bottles or 400g tins
+# TODO: Fill preset items with all sorts of food
+# TODO: Add searching
+# TODO: Add categories
 
 
 @login_required
