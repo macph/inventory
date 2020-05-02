@@ -211,13 +211,6 @@ class AddRecordForm(ModelForm):
                 instance.item = self._parent_item
                 instance.save()
 
-            unit = self.cleaned_data["unit"]
-            if self._parent_item.unit != unit:
-                # Set item preferred unit to latest
-                self._parent_item.unit = unit
-                if commit:
-                    self._parent_item.save()
-
         return instance
 
 
