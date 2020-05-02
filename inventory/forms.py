@@ -5,6 +5,7 @@ Forms for inventory models
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.forms import (
     BaseForm,
@@ -62,7 +63,7 @@ def decimal_field(**kwargs):
 class AddItemForm(ModelForm):
     class Meta:
         model = Item
-        fields = ("name", "unit", "minimum", "initial")
+        fields = ("name", "unit", "minimum")
 
     # override widget to be text input (TextField uses textarea)
     name = CharField(max_length=256)
@@ -71,8 +72,9 @@ class AddItemForm(ModelForm):
     initial = decimal_field(required=False)
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self._user = kwargs.pop("user")
         self._units = Unit.objects.order_by("pk").all()
+        super().__init__(*args, **kwargs)
 
         def collect_units(unit):
             label = unit.label
@@ -84,9 +86,10 @@ class AddItemForm(ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data["name"]
+        ident = slugify(name)
         # the slug must also be unique, check before saving new model
-        if Item.objects.filter(ident=slugify(name)).exists():
-            raise ValidationError(f"Item name already exists.", code="invalid")
+        if Item.objects.filter(Q(name=name) | Q(ident=ident), user=self._user).exists():
+            raise ValidationError("Item name already exists.")
         return name
 
     def clean_unit(self):
@@ -97,13 +100,8 @@ class AddItemForm(ModelForm):
         else:
             raise ValidationError("Unit of measurement does not exist")
 
-    def clean(self):
-        minimum = self.cleaned_data["minimum"] or 0
-        self.cleaned_data["minimum"] = round(
-            minimum * self.cleaned_data["unit"].convert, DP_QUANTITY
-        )
-
-        return super().clean()
+    def clean_minimum(self):
+        return self.cleaned_data["minimum"] or 0
 
 
 class AddInitialRecord(ModelForm):
@@ -125,25 +123,35 @@ class EditItemForm(ModelForm):
     minimum = decimal_field(required=False)
 
     def __init__(self, *args, **kwargs):
-        if "original" in kwargs:
-            item = kwargs.pop("original")
-        else:
-            item = None
-
+        assert "instance" in kwargs, "original item expected"
         super().__init__(*args, **kwargs)
 
-        if item is not None:
-            # set initial data to original item data, and restrict group of units
-            self.fields["name"].initial = item.name
-            self.fields["unit"].initial = item.unit.pk
-            self.fields["unit"].queryset = Unit.objects.filter(
-                measure=item.unit.measure
+        # set initial data to original item data, and restrict group of units
+        self.fields["name"].initial = self.instance.name
+        unit = self.instance.unit
+        self.fields["unit"].initial = unit.pk
+        self.fields["unit"].queryset = Unit.objects.filter(measure=unit.measure)
+        self.fields["minimum"].initial = self.instance.minimum / unit.convert
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
+        # the slug must also be unique, check before saving new model
+        if (
+            Item.objects.filter(
+                Q(name=name) | Q(ident=slugify(name)), user=self.instance.user
             )
-            self.fields["minimum"].initial = item.minimum / item.unit.convert
-        else:
-            self.fields["unit"].queryset = Unit.objects.all()
+            .exclude(id=self.instance.id)
+            .exists()
+        ):
+            raise ValidationError("Item name already exists.")
+        return name
 
     def clean(self):
+        unit = self.cleaned_data.get("unit")
+        if unit is None:
+            raise ValidationError(
+                "Record must have same base unit of measurement as item"
+            )
         minimum = self.cleaned_data["minimum"] or 0
         normalised = minimum * self.cleaned_data["unit"].convert
         self.cleaned_data["minimum"] = round(normalised, DP_QUANTITY)
@@ -169,14 +177,14 @@ class AddRecordForm(ModelForm):
         self.fields["unit"].queryset = Unit.objects.filter(measure=item.unit.measure)
 
     def clean(self):
-        unit = self.cleaned_data["unit"]
         quantity = self.cleaned_data.get("quantity")
         if quantity is None:
             return super().clean()
 
-        if self._parent_item.unit.measure != unit.measure:
+        unit = self.cleaned_data.get("unit")
+        if unit is None or self._parent_item.unit.measure != unit.measure:
             raise ValidationError(
-                "Record must have same base unit of measurement as item", code="invalid"
+                "Record must have same base unit of measurement as item"
             )
 
         # convert quantity to base unit
@@ -187,19 +195,21 @@ class AddRecordForm(ModelForm):
     def save(self, commit=True):
         added = now()
         with atomic():
-            if (
-                self._parent_item.latest_record
-                and added - self._parent_item.latest_record.added < MIN_DOUBLE_POST
-            ):
+            latest_record = (
+                Record.objects.filter(item=self._parent_item).order_by("added").last()
+            )
+            if latest_record and added - latest_record.added < MIN_DOUBLE_POST:
                 # modify latest record
-                instance = self._parent_item.latest_record
+                instance = latest_record
                 instance.added = added
                 instance.quantity = self.instance.quantity
                 if commit:
                     instance.save()
             else:
                 # create new record
-                instance = super().save(commit)
+                instance = super().save(commit=False)
+                instance.item = self._parent_item
+                instance.save()
 
             unit = self.cleaned_data["unit"]
             if self._parent_item.unit != unit:

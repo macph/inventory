@@ -61,14 +61,14 @@ def records(request, ident=None):
 
 class AddItem(LoginRequiredMixin, View):
     def get(self, request):
-        new_item = forms.AddItemForm()
+        new_item = forms.AddItemForm(user=request.user)
         initial_record = forms.AddInitialRecord()
         return render(
             request, "item_add.html", {"new_item": new_item, "record": initial_record}
         )
 
     def post(self, request):
-        new_item = forms.AddItemForm(request.POST)
+        new_item = forms.AddItemForm(request.POST, user=request.user)
         initial_record = forms.AddInitialRecord(request.POST)
 
         if not (new_item.is_valid() and initial_record.is_valid()):
@@ -94,7 +94,7 @@ class AddItem(LoginRequiredMixin, View):
 
         if request.POST.get("another"):
             # return blank form for adding new item
-            next_item = forms.AddItemForm()
+            next_item = forms.AddItemForm(user=request.user)
             next_record = forms.AddInitialRecord()
             return render(
                 request,
@@ -122,7 +122,7 @@ class GetItem(LoginRequiredMixin, View):
             # redirect to correct form of name
             return redirect("item_get", ident=item.ident)
 
-        edit_item = forms.EditItemForm(original=item)
+        edit_item = forms.EditItemForm(instance=item)
         add_record = forms.AddRecordForm(parent_item=item)
         return render(
             request,
@@ -173,22 +173,17 @@ class DeleteItem(LoginRequiredMixin, View):
 class AddRecord(LoginRequiredMixin, View):
     def post(self, request, ident):
         # submitted via a POST form so we're expecting an exact match
-        item = models.Item.with_latest_record().get(user=request.user, ident=ident)
+        item = models.Item.with_records(delta=True).get(user=request.user, ident=ident)
         if not item:
             return Http404(f"food item {ident!r} not found")
 
         new_record = forms.AddRecordForm(request.POST, parent_item=item)
         if new_record.is_valid():
-            # assign foreign key manually and update item if unit was changed
-            with atomic():
-                record = new_record.save(commit=False)
-                record.item = item
-                record.save()
-                item.save()
+            new_record.save()
             # go to item page
             return redirect(item)
         else:
-            edit_item = forms.EditItemForm()
+            edit_item = forms.EditItemForm(instance=item)
             return render(
                 request,
                 "item_get.html",

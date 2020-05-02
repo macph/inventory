@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("quantity", models.DecimalField(decimal_places=3, max_digits=12)),
-                ("added", models.DateTimeField(auto_now=True, db_index=True)),
+                ("added", models.DateTimeField(db_index=True)),
                 ("note", models.TextField(blank=True)),
             ],
         ),

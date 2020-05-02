@@ -135,8 +135,7 @@ class Item(Model):
     ):
         if not self.id:
             self.added = now()
-        if not self.ident:
-            self.ident = slugify(self.name)
+        self.ident = slugify(self.name)
         super().save(force_insert, force_update, using, update_fields)
 
     def __str__(self):
@@ -206,11 +205,18 @@ class Record(Model):
     quantity = DecimalField(
         max_digits=MAX_DIGITS, decimal_places=3, validators=(MinValueValidator(0),),
     )
-    added = DateTimeField(auto_now=True, db_index=True)
+    added = DateTimeField(db_index=True)
     note = TextField(blank=True)
 
     def __str__(self):
         return f"Record ({self.item.name}, {self.added})"
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        if not self.id:
+            self.added = now()
+        super().save(force_insert, force_update, using, update_fields)
 
     def convert_quantity(self):
         return self.quantity / self.item.unit.convert
