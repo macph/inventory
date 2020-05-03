@@ -1,6 +1,6 @@
 inventory
 ---------
 
-Manage your larder!
+Manage your food stockpile!
 
-A Django application.
+A basic forms-based Django application.
