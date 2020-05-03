@@ -113,11 +113,13 @@ class AddItem(LoginRequiredMixin, View):
 class GetItem(LoginRequiredMixin, View):
     def get(self, request, ident):
         # leave flexible to allow for manual URL input
-        item = models.Item.with_records(delta=True).get(
-            user=request.user, ident__iexact=slugify(ident)
+        item = (
+            models.Item.with_records(delta=True)
+            .filter(user=request.user, ident__iexact=slugify(ident))
+            .first()
         )
         if not item:
-            return Http404(f"food item {ident!r} not found")
+            raise Http404(f"food item {ident!r} not found")
         elif item.ident != ident:
             # redirect to correct form of name
             return redirect("item_get", ident=item.ident)
@@ -132,9 +134,13 @@ class GetItem(LoginRequiredMixin, View):
 
     def post(self, request, ident):
         # submitted via a POST form so we're expecting an exact match
-        item = models.Item.with_records(delta=True).get(user=request.user, ident=ident)
+        item = (
+            models.Item.with_records(delta=True)
+            .filter(user=request.user, ident=ident)
+            .first()
+        )
         if not item:
-            return Http404(f"food item {ident!r} not found")
+            raise Http404(f"food item {ident!r} not found")
 
         edit_item = forms.EditItemForm(request.POST, instance=item)
         if edit_item.is_valid():
@@ -153,16 +159,16 @@ class GetItem(LoginRequiredMixin, View):
 
 class DeleteItem(LoginRequiredMixin, View):
     def get(self, request, ident):
-        item = models.Item.objects.get(user=request.user, ident=ident)
+        item = models.Item.objects.filter(user=request.user, ident=ident).first()
         if not item:
-            return Http404(f"food item {ident!r} not found")
+            raise Http404(f"food item {ident!r} not found")
 
         return render(request, "item_delete.html", {"item": item})
 
     def post(self, request, ident):
-        item = models.Item.objects.get(user=request.user, ident=ident)
+        item = models.Item.objects.filter(user=request.user, ident=ident).first()
         if not item:
-            return Http404(f"food item {ident!r} not found")
+            raise Http404(f"food item {ident!r} not found")
 
         with atomic():
             item.delete()
@@ -173,9 +179,13 @@ class DeleteItem(LoginRequiredMixin, View):
 class AddRecord(LoginRequiredMixin, View):
     def post(self, request, ident):
         # submitted via a POST form so we're expecting an exact match
-        item = models.Item.with_records(delta=True).get(user=request.user, ident=ident)
+        item = (
+            models.Item.with_records(delta=True)
+            .filter(user=request.user, ident=ident)
+            .first()
+        )
         if not item:
-            return Http404(f"food item {ident!r} not found")
+            raise Http404(f"food item {ident!r} not found")
 
         new_record = forms.AddRecordForm(request.POST, parent_item=item)
         if new_record.is_valid():

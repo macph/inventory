@@ -261,7 +261,8 @@ def generate_update_form(items):
         for item in this.items:
             if item.ident not in this.cleaned_data["values"]:
                 continue
-            if added - item.latest_record.added < MIN_DOUBLE_POST:
+            latest = item.latest_record
+            if latest and added - latest.added < MIN_DOUBLE_POST:
                 # update latest record for item
                 instance = item.latest_record
                 instance.added = added
@@ -269,9 +270,11 @@ def generate_update_form(items):
                 updated_records.append(instance)
             else:
                 # create new record for item
+                # set added timestamp as bulk_create does not call save() method
                 instance = Record(
                     item=item,
                     quantity=this.cleaned_data["values"][item.ident],
+                    added=added,
                     note=this.cleaned_data["note"],
                 )
                 new_records.append(instance)

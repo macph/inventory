@@ -315,8 +315,66 @@ class AddRecordTestCase(BaseTestCase):
 
 
 class UpdateTestCase(BaseTestCase):
-    pass
+    def setUp(self):
+        self.client.login(username="john", password="password2")
+
+    def test_update(self):
+        latest = Record.objects.filter(item__user__username="john").order_by("added")
+        data = {
+            "not-exists": "3",
+            "item-not-exists": "3",
+            "item-butter": "5000",
+            "item-lemonade": "4",
+            "note": "update test",
+        }
+        response = self.client.post("/update/", data, follow=True)
+
+        self.assertRedirects(response, "/")
+
+        butter = latest.filter(item__name="butter").last()
+        self.assertEqual(butter.quantity, 5)
+        self.assertEqual(butter.note, "update test")
+
+        lemonade = latest.filter(item__name="lemonade").last()
+        self.assertEqual(lemonade.quantity, 4)
+        self.assertEqual(lemonade.note, "update test")
+
+    def test_update_double(self):
+        rice = Record.objects.filter(item__user__username="john", item__name="rice")
+        self.assertEqual(rice.count(), 0)
+
+        self.client.post("/update/", {"item-rice": "5000"}, follow=True)
+        self.client.post("/update/", {"item-rice": "5000"}, follow=True)
+
+        self.assertEqual(rice.count(), 1)
+
+    def test_update_after_minute(self):
+        rice = Record.objects.filter(item__user__username="john", item__name="rice")
+        self.assertEqual(rice.count(), 0)
+
+        self.client.post("/update/", {"item-rice": "5000"}, follow=True)
+
+        latest = rice.order_by("added").last()
+        latest.added -= timedelta(minutes=1)
+        latest.save()
+        self.client.post("/update/", {"item-rice": "5000"}, follow=True)
+
+        self.assertEqual(rice.count(), 2)
 
 
 class DeleteItemTestCase(BaseTestCase):
-    pass
+    def setUp(self):
+        self.client.login(username="john", password="password2")
+
+    def test_delete_not_exists(self):
+        response = self.client.post("/item/not-exists/delete/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete(self):
+        butter = Item.objects.filter(user__username="john", name="butter")
+        self.assertTrue(butter.exists())
+
+        response = self.client.post("/item/butter/delete/", follow=True)
+
+        self.assertRedirects(response, "/")
+        self.assertFalse(butter.exists())
