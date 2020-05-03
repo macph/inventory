@@ -24,7 +24,7 @@ from django.db.models import (
     CASCADE,
     PROTECT,
 )
-from django.db.models.functions import Coalesce, Lag, Lead
+from django.db.models.functions import Cast, Coalesce, Lag, Lead
 from django.conf import settings
 from django.contrib.postgres.fields import CITextField
 from django.urls import reverse
@@ -153,7 +153,11 @@ class Item(Model):
                 partition_by=F("item_id"),
                 order_by=order,
             )
-            expression = F("quantity") - Coalesce(adjacent, 0)
+            # find difference, convert to item's unit and cast to correct decimal places
+            expression = Cast(
+                (F("quantity") - Coalesce(adjacent, 0)) / F("item__unit__convert"),
+                DecimalField(max_digits=MAX_DIGITS, decimal_places=DP_QUANTITY),
+            )
             records = records.annotate(delta=expression)
 
         return (
