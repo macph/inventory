@@ -14,7 +14,12 @@ import os
 from environ import Env
 
 
-env = Env(DEBUG=(bool, False), LOG_LEVEL=(str, "WARNING"), HOSTS=(list, []),)
+env = Env(
+    DEBUG=(bool, False),
+    LOG_LEVEL=(str, "WARNING"),
+    ALLOWED_HOSTS=(list, []),
+    USE_SSL=(bool, False),
+)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,7 +35,15 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = env("HOSTS")
+ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+
+USE_SSL = env("USE_SSL")
+if USE_SSL:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+else:
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = None
 
 
 # Application definition
