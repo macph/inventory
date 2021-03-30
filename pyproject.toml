@@ -6,7 +6,7 @@ authors = ["macph <macph@users.noreply.github.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-django = "^3.0.5"
+django = "^3.0.12"
 psycopg2 = "^2.8.5"
 django-environ = "^0.4.5"
 gunicorn = "^20.0.4"
